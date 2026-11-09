@@ -1,0 +1,6 @@
+{
+  "name": "Painel de Clubes - CETEC",
+  "description": "Painel de gestão de clubes de robótica, encontros e estudantes do CETEC",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
