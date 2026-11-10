@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import logoEducacode from '../assets/logo-educacode.png';
 import iconeEducacode from '../assets/icone.png';
 import { apiPost, setSessionToken } from '../services/api';
 import type { ApiBaseResponse } from '../services/api';
@@ -136,45 +135,46 @@ export function LoginPageRoute({ userName, onLogin }: LoginPageRouteProps) {
         </svg>
       </div>
 
-      <section className="bg-white p-6 sm:p-8 rounded-[1.6rem] sm:rounded-[2rem] shadow-2xl w-[420px] max-w-full text-center border-b-[8px] border-cetecBlueDark relative z-10 backdrop-blur-xs">
-        {/* Logo Educacode da sidebar */}
-        <div className="w-16 h-16 mx-auto mb-3 bg-white rounded-2xl flex items-center justify-center text-cetecBlue shadow-md shadow-blue-900/10 border-2 border-slate-100 p-2">
-          <span className="flex items-center justify-center w-full h-full">
-            <img src={iconeEducacode} alt="Logo Educacode" className="w-12 h-12 object-contain block drop-shadow-xs" />
-          </span>
+      <section className="bg-white p-6 sm:p-8 rounded-[1.6rem] sm:rounded-[2rem] shadow-2xl w-[420px] max-w-full text-center border-b-[8px] border-cetecBlueDark relative z-10">
+        <div className="mb-7">
+          <img
+            src={iconeEducacode}
+            alt="Ícone Educacode"
+            className="w-28 h-28 mx-auto object-contain block drop-shadow-sm"
+            style={{ filter: 'brightness(0) saturate(100%) invert(13%) sepia(54%) saturate(2415%) hue-rotate(204deg) brightness(82%) contrast(106%)' }}
+          />
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-cetecBlue">EducaCode</h1>
+          <p className="mt-1 text-xs font-semibold text-slate-500">Acesso ao ambiente de gerenciamento da Robótica</p>
         </div>
-
-        <h1 className="text-2xl sm:text-3xl font-black text-cetecBlue mb-1 tracking-tight">Educacode</h1>
-        <p className="text-gray-500 font-bold text-xs sm:text-sm mb-6">Acesso ao ambiente de gerenciamento da Robótica</p>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">E-mail</label>
+            <label className="block text-xs font-black text-cetecBlue uppercase tracking-wider mb-1.5">E-mail</label>
             <input
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="Digite seu e-mail"
-              className="w-full px-4 sm:px-5 py-3.5 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-cetecGreen font-bold text-gray-700 text-sm"
+              className="w-full px-4 sm:px-5 py-3.5 bg-white border-2 border-slate-300 rounded-2xl focus:outline-none focus:border-cetecGreen focus:ring-4 focus:ring-cetecGreen/15 font-bold text-gray-800 text-sm shadow-sm placeholder:text-slate-400"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Senha</label>
+            <label className="block text-xs font-black text-cetecBlue uppercase tracking-wider mb-1.5">Senha</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={senha}
                 onChange={(event) => setSenha(event.target.value)}
                 placeholder="Digite sua senha"
-                className="w-full px-4 sm:px-5 py-3.5 pr-12 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-cetecGreen font-bold text-gray-700 text-sm"
+                className="w-full px-4 sm:px-5 py-3.5 pr-12 bg-white border-2 border-slate-300 rounded-2xl focus:outline-none focus:border-cetecGreen focus:ring-4 focus:ring-cetecGreen/15 font-bold text-gray-800 text-sm shadow-sm placeholder:text-slate-400"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((current) => !current)}
-                className="absolute inset-y-0 right-0 px-3.5 text-gray-400 hover:text-cetecBlue"
+                className="absolute inset-y-0 right-0 px-3.5 text-slate-500 hover:text-cetecBlue"
                 aria-label={showPassword ? 'Ocultar senha' : 'Exibir senha'}
                 title={showPassword ? 'Ocultar senha' : 'Exibir senha'}
               >
@@ -197,55 +197,6 @@ export function LoginPageRoute({ userName, onLogin }: LoginPageRouteProps) {
             {loading ? 'A CARREGAR...' : 'ENTRAR'}
           </button>
 
-          {/* Atalho Especial: Admin Supremo */}
-          <div className="pt-3 border-t border-gray-100 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={async () => {
-                const targetEmail = 'adminsupremo@cetec.com';
-                const targetPass = 'adminsupremo';
-                setEmail(targetEmail);
-                setSenha(targetPass);
-                setLoading(true);
-                setErro('');
-                try {
-                  const data = await apiPost<LoginResponse>({ acao: 'login', email: targetEmail, senha: targetPass });
-                  if (data?.sucesso && data?.token) {
-                    setSessionToken(data.token);
-                    onLogin({
-                      name: data.nome || 'Administrador Supremo',
-                      access: data.acesso || 'superadmin',
-                      token: data.token,
-                      tipoUsuario: data.tipo_usuario || 'global',
-                      utec: data.utec || '',
-                      verTodasUtecs: true,
-                    });
-                  } else {
-                    setErro(data?.erro || 'Erro ao autenticar como Admin Supremo.');
-                  }
-                } catch {
-                  setErro('falha de conexao com supabase');
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              disabled={loading}
-              className="btn-3d w-full bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white font-black text-xs sm:text-sm py-3 px-4 rounded-2xl border-b-[5px] border-amber-900 hover:brightness-110 active:scale-95 transition cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-amber-900/20"
-              title="Acesso direto de Admin Supremo com privilégios totais"
-            >
-              <span className="material-symbols-rounded text-lg">admin_panel_settings</span>
-              <span>ENTRAR COMO ADMIN SUPREMO</span>
-            </button>
-
-            <div className="bg-amber-50/60 border border-amber-200/60 rounded-xl p-2.5 text-center">
-              <p className="text-[11px] font-bold text-amber-900">
-                Acesso Master: <span className="font-mono font-extrabold text-amber-950">adminsupremo@cetec.com</span>
-              </p>
-              <p className="text-[10px] text-amber-800/80 font-semibold">
-                Senha: <span className="font-mono font-bold text-amber-950">adminsupremo</span> (Privilégio Absoluto)
-              </p>
-            </div>
-          </div>
         </form>
       </section>
     </main>

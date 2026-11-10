@@ -167,7 +167,7 @@ export function ClubFormModal({
           </label>
           <input
             type="text"
-            placeholder="Ex: Arthur Silveira"
+            placeholder="Nome do responsável"
             value={form.estag}
             onChange={(e) => setForm({ ...form, estag: e.target.value })}
             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:border-cetecGreen focus:ring-2 focus:ring-cetecGreen/20"

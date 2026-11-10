@@ -8,6 +8,7 @@ interface ProjetoFicFecomModalProps {
   onClose: () => void;
   onSubmit: (projeto: ProjetoFicFecom) => void;
   projetoToEdit?: ProjetoFicFecom | null;
+  utecOptions?: Array<{ value: string; label: string }>;
 }
 
 const RECURSOS_DISPONIVEIS = ['Humanóide NAO', 'EV3', 'WeDo', 'Arduino/maker', 'outro'];
@@ -17,6 +18,7 @@ export function ProjetoFicFecomModal({
   onClose,
   onSubmit,
   projetoToEdit,
+  utecOptions = [],
 }: ProjetoFicFecomModalProps) {
   const [activeTab, setActiveTab] = useState<'geral' | 'integrantes' | 'metodologia' | 'robotica' | 'bncc'>('geral');
 
@@ -163,7 +165,7 @@ export function ProjetoFicFecomModal({
       titulo: titulo.trim(),
       modalidade,
       escola: escola.trim(),
-      utec: utec.trim() || 'UTEC Santo Amaro',
+      utec: utec.trim(),
       professor: professor.trim() || 'A definir',
       estagiario: estagiario.trim(),
       status,
@@ -270,7 +272,7 @@ export function ProjetoFicFecomModal({
                 type="text"
                 value={titulo}
                 onChange={(e) => setTitulo(e.target.value)}
-                placeholder="Ex: EcoSense: Monitoramento Inteligente da Bacia do Capibaribe"
+                placeholder="Título do projeto"
                 className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:border-cetecGreen"
                 required
               />
@@ -342,14 +344,17 @@ export function ProjetoFicFecomModal({
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
                   1. UTEC de Referência *
                 </label>
-                <input
-                  type="text"
+                <select
                   value={utec}
                   onChange={(e) => setUtec(e.target.value)}
-                  placeholder="Ex: UTEC Santo Amaro, UTEC Boa Viagem..."
                   className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:border-cetecGreen"
                   required
-                />
+                >
+                  <option value="" disabled>Selecione uma UTEC</option>
+                  {utecOptions.map((option) => (
+                    <option key={option.value} value={option.label}>{option.label}</option>
+                  ))}
+                </select>
               </div>
             </div>
 

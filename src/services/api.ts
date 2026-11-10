@@ -1,10 +1,33 @@
 import { supabase } from './supabase';
-import { DEFAULT_ROTEIROS } from '../data/defaultRoteiros';
 import type { RoteiroDidatico } from '../data/defaultRoteiros';
 
 export const TOKEN_STORAGE_KEY = 'painel_token_sessao';
 export const AUTH_EXPIRED_EVENT = 'auth:expired';
 export const ROTEIROS_CUSTOM_STORAGE_KEY = 'painel_roteiros_custom_v1';
+
+function isAnyAdminAccess(value: unknown): boolean {
+  const access = String(value || '').toLowerCase();
+  return access === 'administrador' || access === 'superadmin' || access.includes('admin');
+}
+
+async function registrarAuditoria(acao: string, tabela: string, idRegistro: unknown, detalhes: Record<string, unknown> = {}): Promise<void> {
+  try {
+    const token = getSessionToken();
+    const { data: usuario } = token && token !== 'superadmin-master-token'
+      ? await supabase.from('usuarios').select('id, nome').eq('id', token).maybeSingle()
+      : { data: null };
+    await supabase.from('auditoria').insert({
+      id_usuario: usuario?.id || null,
+      usuario_nome: usuario?.nome || 'Administrador Supremo',
+      acao,
+      tabela,
+      id_registro: idRegistro == null ? '' : String(idRegistro),
+      detalhes,
+    });
+  } catch (error) {
+    console.warn('Não foi possível registrar a auditoria:', error);
+  }
+}
 
 export function getStoredCustomRoteiros(): RoteiroDidatico[] {
   try {
@@ -271,7 +294,7 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
       case 'listar_usuarios': {
         const { data, error } = await supabase
           .from('usuarios')
-          .select('id, nome, email, acesso, tipo_usuario, utec, ver_todas_utecs, created_at')
+          .select('id, nome, email, acesso, tipo_usuario, id_utec, utec:utecs(nome), ver_todas_utecs, created_at')
           .order('nome', { ascending: true });
 
         if (error) {
@@ -286,12 +309,29 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
           acesso: u.acesso,
           tipoUsuario: u.tipo_usuario,
           tipo_usuario: u.tipo_usuario,
-          utec: u.utec,
+          utec: u.utec?.nome || u.utec || u.id_utec || '',
+          id_utec: u.id_utec,
           verTodasUtecs: u.ver_todas_utecs,
           ver_todas_utecs: u.ver_todas_utecs,
         }));
 
         return mapped as unknown as TResponse;
+      }
+
+      case 'listar_utecs': {
+        const { data, error } = await supabase.from('utecs').select('id, nome').order('nome');
+        if (error) throw error;
+        return (data || []) as unknown as TResponse;
+      }
+
+      case 'listar_auditoria': {
+        const { data, error } = await supabase
+          .from('auditoria')
+          .select('id, id_usuario, usuario_nome, acao, tabela, id_registro, detalhes, created_at')
+          .order('created_at', { ascending: false })
+          .limit(500);
+        if (error) throw error;
+        return (data || []) as unknown as TResponse;
       }
 
       case 'listar_roteiros': {
@@ -343,7 +383,7 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
         }
 
         const customRoteiros = getStoredCustomRoteiros();
-        const allRoteiros = [...customRoteiros, ...DEFAULT_ROTEIROS];
+        const allRoteiros = customRoteiros;
         return allRoteiros as unknown as TResponse;
       }
 
@@ -371,23 +411,6 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
 
         if (!email || !senha) {
           return { sucesso: false, erro: 'Preencha o e-mail e a senha.' } as unknown as TResponse;
-        }
-
-        // Suporte direto para Administrador Supremo
-        if (
-          (email === 'adminsupremo@cetec.com' || email === 'superadmin@cetec.com' || email === 'adminsupremo') &&
-          senha === 'adminsupremo'
-        ) {
-          setSessionToken('superadmin-master-token');
-          return {
-            sucesso: true,
-            token: 'superadmin-master-token',
-            nome: 'Administrador Supremo',
-            acesso: 'superadmin',
-            tipo_usuario: 'global',
-            utec: '',
-            ver_todas_utecs: true,
-          } as unknown as TResponse;
         }
 
         const { data: user, error } = await supabase
@@ -419,6 +442,26 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
           utec: user.utec,
           ver_todas_utecs: user.ver_todas_utecs,
         } as unknown as TResponse;
+      }
+
+      case 'validar_acesso_banco': {
+        const senha = String(payload.senha || '').trim();
+        if (!senha) {
+          return { sucesso: false, erro: 'Informe a senha do Administrador Supremo.' } as unknown as TResponse;
+        }
+
+        const { data: admins, error } = await supabase
+          .from('usuarios')
+          .select('senha')
+          .eq('acesso', 'superadmin')
+          .limit(20);
+
+        if (error) throw error;
+
+        const valido = (admins || []).some((admin) => admin.senha === senha);
+        return (valido
+          ? { sucesso: true }
+          : { sucesso: false, erro: 'Senha do Administrador Supremo incorreta.' }) as unknown as TResponse;
       }
 
       case 'validar_sessao': {
@@ -627,7 +670,7 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
         const nome = String(payload.nome || '').trim().toUpperCase();
         const acesso = String(payload.acesso || 'editor').trim().toLowerCase();
         const tipoUsuario = String(payload.tipo_usuario || payload.tipoUsuario || 'utec').trim().toLowerCase();
-        const utec = String(payload.utec || '').trim().toUpperCase();
+        const idUtec = payload.id_utec || payload.idUtec || null;
         const verTodasUtecs = Boolean(payload.ver_todas_utecs ?? payload.verTodasUtecs ?? false);
         const senha = String(payload.senha || '').trim();
 
@@ -637,7 +680,7 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
             email,
             acesso,
             tipo_usuario: tipoUsuario,
-            utec,
+            id_utec: isAnyAdminAccess(acesso) ? null : idUtec,
             ver_todas_utecs: verTodasUtecs,
           };
           if (senha) {
@@ -650,6 +693,7 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
             .eq('id', userId);
 
           if (error) throw error;
+          await registrarAuditoria('atualizar', 'usuarios', userId, { nome, email, acesso });
           return { sucesso: true, id: userId, mensagem: 'Usuário atualizado com sucesso.' } as unknown as TResponse;
         }
 
@@ -665,7 +709,7 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
             senha,
             acesso,
             tipo_usuario: tipoUsuario,
-            utec,
+            id_utec: isAnyAdminAccess(acesso) ? null : idUtec,
             ver_todas_utecs: verTodasUtecs,
           })
           .select('id')
@@ -678,6 +722,7 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
           throw error;
         }
 
+        await registrarAuditoria('cadastrar', 'usuarios', data?.id, { nome, email, acesso });
         return { sucesso: true, id: data?.id, mensagem: 'Usuário cadastrado com sucesso.' } as unknown as TResponse;
       }
 
@@ -705,7 +750,33 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
 
         const { error } = await query;
         if (error) throw error;
+        await registrarAuditoria('excluir', 'usuarios', userId || email, {});
         return { sucesso: true, mensagem: 'Usuário excluído com sucesso.' } as unknown as TResponse;
+      }
+
+      case 'salvar_utec': {
+        const id = payload.id || payload.id_utec;
+        const nome = String(payload.nome || '').trim();
+        if (!nome) return { sucesso: false, erro: 'Informe o nome da UTEC.' } as unknown as TResponse;
+        if (id) {
+          const { error } = await supabase.from('utecs').update({ nome }).eq('id', id);
+          if (error) throw error;
+          await registrarAuditoria('atualizar', 'utecs', id, { nome });
+          return { sucesso: true, id, mensagem: 'UTEC atualizada com sucesso.' } as unknown as TResponse;
+        }
+        const { data, error } = await supabase.from('utecs').insert({ nome }).select('id').single();
+        if (error) throw error;
+        await registrarAuditoria('cadastrar', 'utecs', data?.id, { nome });
+        return { sucesso: true, id: data?.id, mensagem: 'UTEC cadastrada com sucesso.' } as unknown as TResponse;
+      }
+
+      case 'excluir_utec': {
+        const id = payload.id || payload.id_utec;
+        if (!id) return { sucesso: false, erro: 'Identificador da UTEC ausente.' } as unknown as TResponse;
+        const { error } = await supabase.from('utecs').delete().eq('id', id);
+        if (error) throw error;
+        await registrarAuditoria('excluir', 'utecs', id, {});
+        return { sucesso: true, mensagem: 'UTEC excluída com sucesso.' } as unknown as TResponse;
       }
 
       case 'salvar_roteiro': {

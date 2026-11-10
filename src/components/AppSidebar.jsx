@@ -23,6 +23,7 @@ export function AppSidebar({
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showDevsModal, setShowDevsModal] = useState(false);
 
   const hasUserManagementAccess = canManageUsers(userRole) || allowUsersTools;
@@ -58,31 +59,37 @@ export function AppSidebar({
             <div className="flex items-center gap-2.5 ml-auto">
               <button
                 type="button"
-                onClick={() => setShowDevsModal(true)}
-                className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 text-white hover:bg-white/20 active:scale-95 transition"
-                title="Desenvolvedores"
-                aria-label="Desenvolvedores"
+                onClick={() => setMobileMenuOpen(true)}
+                className="app-mobile-topbar__menu"
+                title="Abrir menu"
+                aria-label="Abrir menu"
+                aria-expanded={mobileMenuOpen}
               >
-                <span className="material-symbols-rounded text-[18px]">code</span>
-              </button>
-              <button
-                type="button"
-                onClick={onLogout}
-                className="app-mobile-topbar__logout"
-                title={`Sair do sistema (${userName})`}
-                aria-label="Sair do sistema"
-              >
-                <span className="material-symbols-rounded text-[18px]">logout</span>
+                <span className="material-symbols-rounded text-[22px]">menu</span>
               </button>
             </div>
           </div>
         </header>
 
-        <aside className="app-mobile-tabbar" aria-label="Navegação principal">
-          <nav className="app-mobile-tabbar__nav">
+        {mobileMenuOpen && (
+          <div
+            className="app-mobile-menu-backdrop"
+            role="presentation"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+
+        <aside className={`app-mobile-drawer ${mobileMenuOpen ? 'is-open' : ''}`} aria-label="Navegação principal">
+          <div className="app-mobile-drawer__header">
+            <span className="font-black text-white">Menu</span>
+            <button type="button" onClick={() => setMobileMenuOpen(false)} aria-label="Fechar menu" className="app-mobile-drawer__close">
+              <span className="material-symbols-rounded">close</span>
+            </button>
+          </div>
+          <nav className="app-mobile-drawer__nav">
             <button
               type="button"
-              onClick={handleOpenDashboard}
+              onClick={() => { setMobileMenuOpen(false); handleOpenDashboard(); }}
               className={`app-mobile-tab-btn ${activeView === 'dashboard' ? 'is-active' : ''}`}
               title="Visão Geral"
             >
@@ -92,7 +99,7 @@ export function AppSidebar({
 
             <button
               type="button"
-              onClick={handleOpenClubs}
+              onClick={() => { setMobileMenuOpen(false); handleOpenClubs(); }}
               className={`app-mobile-tab-btn ${activeView === 'clubs' ? 'is-active' : ''}`}
               title="Painel de Clubes"
             >
@@ -102,7 +109,7 @@ export function AppSidebar({
 
             <button
               type="button"
-              onClick={handleOpenClubesCompeticao}
+              onClick={() => { setMobileMenuOpen(false); handleOpenClubesCompeticao(); }}
               className={`app-mobile-tab-btn ${activeView === 'clubes-competicao' ? 'is-active text-yellow-300' : ''}`}
               title="Clubes Competição"
             >
@@ -112,7 +119,7 @@ export function AppSidebar({
 
             <button
               type="button"
-              onClick={handleOpenProjetosFicFecom}
+              onClick={() => { setMobileMenuOpen(false); handleOpenProjetosFicFecom(); }}
               className={`app-mobile-tab-btn ${activeView === 'projetos-fic-fecom' ? 'is-active text-teal-300' : ''}`}
               title="Projetos FIC & FECOM"
             >
@@ -122,7 +129,7 @@ export function AppSidebar({
 
             <button
               type="button"
-              onClick={handleOpenRoteiros}
+              onClick={() => { setMobileMenuOpen(false); handleOpenRoteiros(); }}
               className={`app-mobile-tab-btn ${activeView === 'roteiros' ? 'is-active' : ''}`}
               title="Roteiros Didáticos"
             >
@@ -132,7 +139,7 @@ export function AppSidebar({
 
             <button
               type="button"
-              onClick={handleOpenGaleria}
+              onClick={() => { setMobileMenuOpen(false); handleOpenGaleria(); }}
               className={`app-mobile-tab-btn ${activeView === 'galeria' ? 'is-active' : ''}`}
               title="Galeria de Fotos"
             >
@@ -143,19 +150,19 @@ export function AppSidebar({
             {hasUserManagementAccess && (
               <button
                 type="button"
-                onClick={handleOpenAdminUsers}
+                onClick={() => { setMobileMenuOpen(false); handleOpenAdminUsers(); }}
                 className={`app-mobile-tab-btn ${activeView === 'admin-users' ? 'is-active' : ''}`}
-                title="Usuários"
+                title="Gerenciamento do Sistema"
               >
                 <span className="material-symbols-rounded text-[18px]">person_add</span>
-                <span>Usuários</span>
+                <span>Gerenciamento</span>
               </button>
             )}
 
             {hasDatabaseAccess && (
               <button
                 type="button"
-                onClick={handleOpenDatabaseControl}
+                onClick={() => { setMobileMenuOpen(false); handleOpenDatabaseControl(); }}
                 className={`app-mobile-tab-btn ${activeView === 'database-control' ? 'is-active text-amber-300' : ''}`}
                 title="Banco de Dados"
               >
@@ -164,6 +171,16 @@ export function AppSidebar({
               </button>
             )}
           </nav>
+          <div className="app-mobile-drawer__footer">
+            <button type="button" onClick={() => { setMobileMenuOpen(false); setShowDevsModal(true); }} className="app-mobile-drawer__action">
+              <span className="material-symbols-rounded">code</span>
+              <span>Desenvolvedores</span>
+            </button>
+            <button type="button" onClick={onLogout} className="app-mobile-drawer__action app-mobile-drawer__action--logout">
+              <span className="material-symbols-rounded">logout</span>
+              <span>Sair do Sistema</span>
+            </button>
+          </div>
         </aside>
 
         <BaseModal
@@ -375,10 +392,10 @@ export function AppSidebar({
               type="button"
               onClick={handleOpenAdminUsers}
               className={`nav-btn ${expandedDesktop ? 'w-full justify-start px-5 py-3 rounded-2xl' : 'w-12 h-12 mx-auto justify-center rounded-xl'} bg-white/10 font-bold hover:bg-white/20 transition flex items-center border-b-4 border-transparent hover:border-white/20 text-sm ${activeView === 'admin-users' ? 'bg-white/20 border-white/30' : ''}`}
-              title="Usuários"
+              title="Gerenciamento do Sistema"
             >
               <span className={`material-symbols-rounded text-[20px] ${expandedDesktop ? 'mr-3' : ''}`}>person_add</span>
-              {expandedDesktop && <span className="whitespace-nowrap">Usuários</span>}
+              {expandedDesktop && <span className="whitespace-nowrap">Gerenciamento</span>}
             </button>
           )}
 
@@ -406,7 +423,7 @@ export function AppSidebar({
           <button
             type="button"
             onClick={() => setShowDevsModal(true)}
-            className={`${expandedDesktop ? 'w-full px-4 py-3 rounded-xl justify-start' : 'w-12 h-12 mx-auto justify-center'} bg-white/10 text-white font-bold hover:bg-white/20 transition text-sm inline-flex items-center gap-2`}
+            className={`${expandedDesktop ? 'w-full px-4 py-3 rounded-xl justify-start' : 'w-12 h-12 mx-auto rounded-xl justify-center'} bg-white/10 text-white font-bold hover:bg-white/20 transition text-sm inline-flex items-center gap-2`}
             title="Desenvolvedores do Sistema"
           >
             <span className="material-symbols-rounded text-[18px]">code</span>

@@ -3,7 +3,6 @@ import { getStoredClubesCompeticao, clearStoredClubesCompeticao } from '../data/
 import type { ClubeCompeticao } from '../data/defaultClubesCompeticao';
 import { getStoredProjetosFicFecom, clearStoredProjetosFicFecom } from '../data/defaultProjetosFicFecom';
 import type { ProjetoFicFecom } from '../data/defaultProjetosFicFecom';
-import { DEFAULT_ROTEIROS } from '../data/defaultRoteiros';
 
 export interface DatabaseSummaryStats {
   totalClubes: number;
@@ -78,13 +77,11 @@ export async function fetchFullDatabaseDump(): Promise<FullDatabaseDump> {
   let roteiros: any[] = [];
   try {
     const { data } = await supabase.from('roteiros_didaticos').select('*');
-    if (data && data.length > 0) {
+    if (data) {
       roteiros = data;
-    } else {
-      roteiros = DEFAULT_ROTEIROS;
     }
-  } catch {
-    roteiros = DEFAULT_ROTEIROS;
+  } catch (err) {
+    console.warn('Erro ao carregar roteiros no dump:', err);
   }
 
   // 6. Clubes de Competição (armazenados)

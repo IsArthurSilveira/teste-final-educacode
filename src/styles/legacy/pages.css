@@ -1,27 +1,3 @@
-.app-mobile-tabbar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 45;
-    padding: 0.5rem 0.7rem calc(0.5rem + env(safe-area-inset-bottom));
-    background: linear-gradient(to top, rgba(237, 243, 250, 0.98), rgba(237, 243, 250, 0.72));
-    backdrop-filter: blur(10px);
-}
-
-.app-mobile-tabbar__nav {
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 0.3rem;
-    border-radius: 1.05rem;
-    border: 1px solid rgba(148, 163, 184, 0.24);
-    background: rgba(255, 255, 255, 0.96);
-    box-shadow: 0 14px 26px rgba(15, 23, 42, 0.12);
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.25rem;
-}
-
 .dashboard-command-actions {
     display: inline-flex;
     align-items: center;
@@ -353,4 +329,3 @@
         min-width: 58px;
     }
 }
-

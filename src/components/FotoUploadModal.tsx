@@ -18,15 +18,6 @@ interface FotoUploadModalProps {
   clubes?: ClubeOption[];
 }
 
-const DEFAULT_FALLBACK_CLUBES: ClubeOption[] = [
-  { id: 'c1', nome: 'Clube de Robótica Santos Dumont', escola: 'Escola Municipal Santos Dumont', utec: 'UTEC Santo Amaro' },
-  { id: 'c2', nome: 'Clube Maker Dom Bosco', escola: 'Escola Dom Bosco', utec: 'UTEC Boa Viagem' },
-  { id: 'c3', nome: 'Clube Futuro Maker', escola: 'Escola Paulo Freire', utec: 'UTEC Casa Amarela' },
-  { id: 'c4', nome: 'Clube Tech Tiradentes', escola: 'Escola Tiradentes', utec: 'UTEC Cordeiro' },
-  { id: 'c5', nome: 'Clube Pequenos Inventores', escola: 'Escola Cecília Meireles', utec: 'UTEC Santo Amaro' },
-  { id: 'c6', nome: 'Clube Python & Robótica', escola: 'Escola Gilberto Freyre', utec: 'UTEC Boa Viagem' },
-];
-
 export function FotoUploadModal({
   open,
   onClose,
@@ -35,10 +26,7 @@ export function FotoUploadModal({
   clubes = [],
 }: FotoUploadModalProps) {
   const availableClubes = useMemo(() => {
-    if (clubes && clubes.length > 0) {
-      return clubes.filter((c) => Boolean(c.nome && c.nome.trim()));
-    }
-    return DEFAULT_FALLBACK_CLUBES;
+    return clubes.filter((c) => Boolean(c.nome && c.nome.trim()));
   }, [clubes]);
 
   const [previewUrl, setPreviewUrl] = useState('');

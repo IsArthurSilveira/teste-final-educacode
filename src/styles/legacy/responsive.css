@@ -3,6 +3,150 @@
         grid-auto-rows: minmax(0, 1fr);
     }
 
+    /* Shared small-screen safeguards */
+    .app-main-pane {
+        min-width: 0;
+    }
+
+    .app-main-pane > div {
+        min-width: 0;
+    }
+
+    img,
+    svg,
+    canvas,
+    video {
+        max-width: 100%;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+        max-width: 100%;
+    }
+
+    .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    @media (max-width: 1023px) {
+        .app-main-pane {
+            width: 100%;
+            overflow-x: hidden;
+        }
+
+        .app-main-pane .dashboard-panel-head,
+        .app-main-pane .dashboard-filter-row,
+        .app-main-pane .clubes-toolbar-row {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .app-main-pane .dashboard-panel-head > *,
+        .app-main-pane .dashboard-filter-row > *,
+        .app-main-pane .clubes-toolbar-row > * {
+            max-width: 100%;
+        }
+
+        .app-main-pane .dashboard-filter-bar,
+        .app-main-pane .dashboard-command-actions {
+            justify-content: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .clubes-search-inline {
+            min-width: 0;
+            width: 100%;
+            max-width: none;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .ui-modal-card {
+            width: calc(100vw - 1.5rem);
+            max-width: calc(100vw - 1.5rem);
+            margin: 0.75rem;
+        }
+
+        .app-main-pane > div.p-4,
+        .app-main-pane > div.sm\:p-6,
+        .app-main-pane > div.lg\:p-8 {
+            padding: 1rem;
+        }
+
+        .app-main-pane .grid {
+            min-width: 0;
+        }
+
+        .app-main-pane .dashboard-kpi-grid,
+        .app-main-pane .ui-card-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .app-main-pane .dashboard-filter-chip,
+        .app-main-pane .dashboard-command-chip {
+            flex: 1 1 auto;
+            justify-content: center;
+            min-height: 2.5rem;
+        }
+
+        .app-main-pane .dashboard-search-pill {
+            width: 100%;
+            max-width: none;
+        }
+
+        .app-main-pane table {
+            min-width: 640px;
+        }
+
+        .app-main-pane .text-3xl {
+            font-size: 1.65rem;
+            line-height: 2rem;
+        }
+
+        .app-main-pane .text-2xl {
+            font-size: 1.4rem;
+            line-height: 1.75rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .app-mobile-topbar__inner {
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 0.45rem;
+            padding-inline: 0.65rem;
+        }
+
+        .app-mobile-topbar__logo {
+            width: 96px;
+        }
+
+        .app-mobile-topbar__user {
+            font-size: 0.62rem;
+        }
+
+        .app-main-pane > div.p-4,
+        .app-main-pane > div.sm\:p-6,
+        .app-main-pane > div.lg\:p-8 {
+            padding: 0.75rem;
+        }
+
+        .app-main-pane .rounded-\[2rem\] {
+            border-radius: 1.25rem;
+        }
+
+        .app-main-pane .btn-3d {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .app-mobile-drawer {
+            width: min(88vw, 320px);
+        }
+    }
+
     .dashboard-main-grid > .dashboard-panel {
         height: 100%;
         min-height: 0;
@@ -13,4 +157,3 @@
         gap: 0.68rem;
     }
 }
-

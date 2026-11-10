@@ -7,6 +7,7 @@ interface ClubeCompeticaoModalProps {
   onClose: () => void;
   onSubmit: (clube: ClubeCompeticao) => void;
   clubeToEdit?: ClubeCompeticao | null;
+  utecOptions?: Array<{ value: string; label: string }>;
 }
 
 export function ClubeCompeticaoModal({
@@ -14,10 +15,11 @@ export function ClubeCompeticaoModal({
   onClose,
   onSubmit,
   clubeToEdit,
+  utecOptions = [],
 }: ClubeCompeticaoModalProps) {
   const [nome, setNome] = useState(clubeToEdit?.nome || '');
   const [escola, setEscola] = useState(clubeToEdit?.escola || '');
-  const [utec, setUtec] = useState(clubeToEdit?.utec || 'UTEC Santo Amaro');
+  const [utec, setUtec] = useState(clubeToEdit?.utec || '');
   const [competicao, setCompeticao] = useState<ClubeCompeticao['competicao']>(clubeToEdit?.competicao || 'FLL');
   const [nivel, setNivel] = useState<ClubeCompeticao['nivel']>(clubeToEdit?.nivel || 'Nível 2 (Anos Finais)');
   const [prof, setProf] = useState(clubeToEdit?.prof || '');
@@ -63,7 +65,9 @@ export function ClubeCompeticaoModal({
       open={open}
       onClose={onClose}
       title={clubeToEdit ? 'Editar Equipe de Competição' : 'Cadastrar Equipe de Competição'}
+      subtitle=""
       size="wide"
+      contentProps={{}}
     >
       <form onSubmit={handleSubmit} className="space-y-3.5 text-left">
         {/* Banner de destaque Amarelo e Verde */}
@@ -97,7 +101,7 @@ export function ClubeCompeticaoModal({
               type="text"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex: CyberDragons FLL"
+              placeholder="Nome da equipe"
               className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-400/20"
               required
             />
@@ -144,7 +148,7 @@ export function ClubeCompeticaoModal({
               type="text"
               value={escola}
               onChange={(e) => setEscola(e.target.value)}
-              placeholder="Ex: E.M. Santos Dumont"
+              placeholder="Nome da escola"
               className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:border-yellow-500"
               required
             />
@@ -158,15 +162,12 @@ export function ClubeCompeticaoModal({
               value={utec}
               onChange={(e) => setUtec(e.target.value)}
               className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:border-yellow-500 cursor-pointer"
+              required
             >
-              <option value="UTEC Santo Amaro">UTEC Santo Amaro</option>
-              <option value="UTEC Boa Viagem">UTEC Boa Viagem</option>
-              <option value="UTEC Casa Amarela">UTEC Casa Amarela</option>
-              <option value="UTEC Cordeiro">UTEC Cordeiro</option>
-              <option value="UTEC Gregório Bezerra">UTEC Gregório Bezerra</option>
-              <option value="UTEC Iputinga">UTEC Iputinga</option>
-              <option value="UTEC Largo do Dom">UTEC Largo do Dom</option>
-              <option value="UTEC Sítio Trindade">UTEC Sítio Trindade</option>
+              <option value="" disabled>Selecione uma UTEC</option>
+              {utecOptions.map((option) => (
+                <option key={option.value} value={option.label}>{option.label}</option>
+              ))}
             </select>
           </div>
         </div>

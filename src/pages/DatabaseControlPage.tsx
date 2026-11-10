@@ -11,6 +11,7 @@ import {
   resetSupabaseConfig,
   testSupabaseConnection,
 } from '../services/supabase';
+import { apiPost } from '../services/api';
 import {
   getDatabaseSummaryStats,
   exportDatabaseToExcel,
@@ -19,6 +20,7 @@ import {
 } from '../services/databaseControl';
 import type { DatabaseSummaryStats } from '../services/databaseControl';
 import { canAccessDatabase, isSuperAdmin } from '../utils/permissions';
+import supabaseSetupSql from '../../supabase-setup.sql?raw';
 
 interface DatabaseControlPageProps {
   userName: string;
@@ -38,7 +40,6 @@ interface DatabaseControlPageProps {
   onOpenAdminUsers?: () => void;
 }
 
-const MASTER_PASSWORD = 'adminsupremo';
 const AUTH_SESSION_KEY = 'CETEC_DB_CONTROL_AUTH';
 
 export function DatabaseControlPage({
@@ -59,9 +60,10 @@ export function DatabaseControlPage({
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Autenticação por permissão Admin Supremo ou senha 'adminsupremo'
+  // Administradores supremos já autenticados entram diretamente; após bloquear,
+  // o desbloqueio exige a senha cadastrada para o administrador no Supabase.
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return isSuperAdmin(userRole) || sessionStorage.getItem(AUTH_SESSION_KEY) === MASTER_PASSWORD;
+    return isSuperAdmin(userRole) || sessionStorage.getItem(AUTH_SESSION_KEY) === 'authenticated';
   });
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -142,14 +144,23 @@ export function DatabaseControlPage({
   }, [isAuthenticated]);
 
   // Tratar submissão de senha
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    if (passwordInput.trim() === MASTER_PASSWORD) {
-      sessionStorage.setItem(AUTH_SESSION_KEY, MASTER_PASSWORD);
-      setIsAuthenticated(true);
-      setAuthError('');
-    } else {
-      setAuthError('Senha incorreta! Digite a senha master de controle.');
+    setAuthError('');
+    try {
+      const response = await apiPost<{ sucesso?: boolean; erro?: string }>({
+        acao: 'validar_acesso_banco',
+        senha: passwordInput,
+      });
+      if (response.sucesso) {
+        sessionStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
+        setIsAuthenticated(true);
+        setPasswordInput('');
+        return;
+      }
+      setAuthError(response.erro || 'Senha do Administrador Supremo incorreta.');
+    } catch {
+      setAuthError('Não foi possível validar a senha no Supabase.');
     }
   }
 
@@ -461,7 +472,7 @@ ON CONFLICT (email) DO UPDATE SET
     tipo_usuario = 'global',
     ver_todas_utecs = true;`;
 
-    navigator.clipboard.writeText(sqlText);
+    navigator.clipboard.writeText(supabaseSetupSql);
     setSqlCopied(true);
     setTimeout(() => setSqlCopied(false), 3000);
   }
@@ -509,7 +520,7 @@ ON CONFLICT (email) DO UPDATE SET
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="text-left">
                 <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                  Senha Master de Acesso
+                  Senha do Administrador Supremo
                 </label>
                 <div className="relative">
                   <input
@@ -519,7 +530,7 @@ ON CONFLICT (email) DO UPDATE SET
                       setPasswordInput(e.target.value);
                       if (authError) setAuthError('');
                     }}
-                    placeholder="Digite a senha master..."
+                    placeholder="Digite a senha cadastrada no login..."
                     autoFocus
                     className="w-full px-4 py-3.5 pr-11 bg-slate-50 border-2 border-slate-200 rounded-2xl text-slate-800 text-sm font-semibold focus:outline-none focus:border-amber-500 focus:bg-white transition"
                   />
@@ -865,7 +876,8 @@ ON CONFLICT (email) DO UPDATE SET
                 </div>
 
                 <div className="bg-slate-900 text-slate-100 p-4 rounded-2xl text-xs font-mono max-h-48 overflow-y-auto leading-relaxed border border-slate-800">
-                  <pre>
+                  <pre>{supabaseSetupSql}</pre>
+                  <pre className="hidden">
 {`-- 1. Criação das Tabelas Principais do CETEC
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 

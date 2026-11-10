@@ -25,7 +25,6 @@ ChartJS.register(
 );
 
 const ENCONTROS_META_PADRAO = 16;
-const STATIC_GENDER_DISTRIBUTION = [52, 48];
 const CHART_ANIMATION = { duration: 850, easing: 'easeOutQuart' };
 
 export function DashboardView({ clubes, genderStats, onSelectClub }) {
@@ -55,7 +54,7 @@ export function DashboardView({ clubes, genderStats, onSelectClub }) {
   const genderLabels = ['Meninos', 'Meninas'];
   const genderColors = ['#8B5CF6', '#4ECBD9'];
   const genderValues = [sanitizeNumber(genderStats?.masculino), sanitizeNumber(genderStats?.feminino)];
-  const genderDataset = genderValues[0] + genderValues[1] > 0 ? genderValues : STATIC_GENDER_DISTRIBUTION;
+  const genderDataset = genderValues;
   const genderLegend = buildLegendData(genderLabels, genderDataset, genderColors);
   const genderRingData = genderLegend.map((item, index) => ({
     label: item.label,

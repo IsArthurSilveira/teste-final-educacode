@@ -91,6 +91,8 @@ function AppRoutes() {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [adminUsersLoading, setAdminUsersLoading] = useState(false);
   const [adminUsersError, setAdminUsersError] = useState('');
+  const [utecs, setUtecs] = useState<Array<{ id: string; nome: string }>>([]);
+  const [auditEntries, setAuditEntries] = useState<any[]>([]);
   const resolvedUtecScope = userCanSeeAllUtecs ? '' : userUtecScope;
   const {
     clubes,
@@ -186,7 +188,20 @@ function AppRoutes() {
   const allowCreateClub = canCreateClub(normalizedRole);
   const allowAdminTools = isAnyAdmin(normalizedRole);
   const allowUsersTools = canManageUsers(normalizedRole);
-  const utecOptions = useMemo(() => buildUtecOptions(clubes, userCanSeeAllUtecs, resolvedUtecScope), [clubes, resolvedUtecScope, userCanSeeAllUtecs]);
+  const utecOptions = useMemo(() => {
+    const allOptions = utecs.map((utec) => ({ value: String(utec.id), label: utec.nome }));
+    if (userCanSeeAllUtecs || !resolvedUtecScope) return allOptions;
+    const scope = String(resolvedUtecScope).trim().toLowerCase();
+    return allOptions.filter((option) => option.value === scope || option.label.trim().toLowerCase() === scope);
+  }, [utecs, resolvedUtecScope, userCanSeeAllUtecs]);
+  const loadUtecs = useCallback(async () => {
+    try {
+      const response = await apiGet<unknown>({ acao: 'listar_utecs', _t: Date.now() });
+      setUtecs(Array.isArray(response) ? response as Array<{ id: string; nome: string }> : []);
+    } catch {
+      setUtecs([]);
+    }
+  }, []);
   const loadAdminUsers = useCallback(async () => {
     if (!allowUsersTools) return;
 
@@ -203,18 +218,34 @@ function AppRoutes() {
       setAdminUsersLoading(false);
     }
   }, [allowUsersTools]);
+  const loadAdminManagementData = useCallback(async () => {
+    if (!allowUsersTools) return;
+    try {
+      const [utecResponse, auditResponse] = await Promise.all([
+        apiGet<unknown>({ acao: 'listar_utecs', _t: Date.now() }),
+        apiGet<unknown>({ acao: 'listar_auditoria', _t: Date.now() }),
+      ]);
+      setUtecs(Array.isArray(utecResponse) ? utecResponse as Array<{ id: string; nome: string }> : []);
+      setAuditEntries(Array.isArray(auditResponse) ? auditResponse : []);
+    } catch {
+      setUtecs([]);
+      setAuditEntries([]);
+    }
+  }, [allowUsersTools]);
 
   useEffect(() => {
     if (userName && sessionChecked) {
       loadClubes();
+      loadUtecs();
     }
-  }, [userName, sessionChecked, loadClubes, resolvedUtecScope, userCanSeeAllUtecs]);
+  }, [userName, sessionChecked, loadClubes, loadUtecs, resolvedUtecScope, userCanSeeAllUtecs]);
 
   useEffect(() => {
     if (userName && sessionChecked && allowUsersTools) {
       loadAdminUsers();
+      loadAdminManagementData();
     }
-  }, [userName, sessionChecked, allowUsersTools, loadAdminUsers]);
+  }, [userName, sessionChecked, allowUsersTools, loadAdminUsers, loadAdminManagementData]);
 
   const auth = useMemo<AuthContextValue>(() => ({
     userName,
@@ -411,13 +442,24 @@ function AppRoutes() {
                 onOpenNewClub={openNewClubModal}
                 onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
                 onOpenAdminUsers={() => navigate('/admin/usuarios')}
-                utecOptions={utecOptions as never[]}
                 usuarios={adminUsers as never[]}
                 usuariosLoading={adminUsersLoading}
                 usuariosError={adminUsersError}
                 onRefreshUsuarios={refreshAdminUsers}
                 onSaveUser={handleSaveUser}
                 onDeleteUser={handleDeleteUser}
+                utecs={utecs}
+                auditoria={auditEntries}
+                onSaveUtec={async (payload) => {
+                  const result = await apiPost<ApiBaseResponse>(payload);
+                  await loadAdminManagementData();
+                  return result;
+                }}
+                onDeleteUtec={async (payload) => {
+                  const result = await apiPost<ApiBaseResponse>(payload);
+                  await loadAdminManagementData();
+                  return result;
+                }}
               />
             ) : (
               <Navigate to="/dashboard" replace />
@@ -488,6 +530,7 @@ function AppRoutes() {
               onOpenNewClub={openNewClubModal}
               onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
               onOpenAdminUsers={() => navigate('/admin/usuarios')}
+              utecOptions={utecOptions as never[]}
             />
           )}
         />
@@ -510,6 +553,7 @@ function AppRoutes() {
               onOpenNewClub={openNewClubModal}
               onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
               onOpenAdminUsers={() => navigate('/admin/usuarios')}
+              utecOptions={utecOptions as never[]}
             />
           )}
         />

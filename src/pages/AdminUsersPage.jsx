@@ -46,6 +46,10 @@ export function AdminUsersPage({
   onRefreshUsuarios,
   onSaveUser,
   onDeleteUser,
+  utecs = [],
+  auditoria = [],
+  onSaveUtec,
+  onDeleteUtec,
 }) {
   const [search, setSearch] = useState('');
   const [quickFilter, setQuickFilter] = useState('all');
@@ -57,10 +61,19 @@ export function AdminUsersPage({
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleteError, setDeleteError] = useState('');
   const [deleteSaving, setDeleteSaving] = useState(false);
+  const [activeSection, setActiveSection] = useState('usuarios');
+  const [editingUser, setEditingUser] = useState(null);
+  const [utecName, setUtecName] = useState('');
+  const [editingUtec, setEditingUtec] = useState(null);
+  const [utecError, setUtecError] = useState('');
 
   const canManage = canManageUsersFn(userRole);
   const allowedAssignableRoles = useMemo(() => getAllowedAssignableRoles(userRole), [userRole]);
   const options = useMemo(() => (Array.isArray(utecOptions) ? utecOptions : []), [utecOptions]);
+  const managedUtecOptions = useMemo(
+    () => (Array.isArray(utecs) ? utecs.map((utec) => ({ value: String(utec.id), label: utec.nome })) : options),
+    [utecs, options],
+  );
   const normalizedSearch = search.trim().toLowerCase();
 
   const filteredUsers = useMemo(() => {
@@ -89,7 +102,22 @@ export function AdminUsersPage({
     setForm({
       ...EMPTY_FORM,
       acesso: initialRole,
-      utec: initialRole === 'editor' ? (options[0]?.value || '') : '',
+      utec: initialRole === 'editor' ? (managedUtecOptions[0]?.value || '') : '',
+    });
+    setEditingUser(null);
+  }
+
+  function openEditModal(user) {
+    setError('');
+    setSuccess('');
+    setEditingUser(user);
+    setShowAddModal(true);
+    setForm({
+      nome: user.nome || '',
+      email: user.email || '',
+      senha: '',
+      acesso: normalizeAccessLevel(user.acesso || user.tipoUsuario || 'editor'),
+      utec: String(user.id_utec || user.utec || ''),
     });
   }
 
@@ -102,7 +130,7 @@ export function AdminUsersPage({
         if (isGlobal) {
           next.utec = '';
         } else if (!next.utec) {
-          next.utec = options[0]?.value || '';
+          next.utec = managedUtecOptions[0]?.value || '';
         }
       }
 
@@ -132,7 +160,8 @@ export function AdminUsersPage({
         acesso: form.acesso,
         tipo_usuario: isGlobalUser ? 'global' : 'utec',
         ver_todas_utecs: isGlobalUser,
-        utec: isGlobalUser ? '' : form.utec,
+        id_utec: isGlobalUser ? null : form.utec || null,
+        id: editingUser?.id,
       };
 
       let result = await onSaveUser(payload);
@@ -143,14 +172,14 @@ export function AdminUsersPage({
       if (result?.sucesso) {
         setShowAddModal(false);
         setForm(EMPTY_FORM);
-        setSuccess('Usuário cadastrado com sucesso.');
+        setSuccess(editingUser ? 'Usuário atualizado com sucesso.' : 'Usuário cadastrado com sucesso.');
         if (onRefreshUsuarios) await onRefreshUsuarios();
         return;
       }
 
-      setError(String(result?.erro || result?.mensagem || 'Não foi possível cadastrar o usuário.'));
+      setError(String(result?.erro || result?.mensagem || 'Não foi possível salvar o usuário.'));
     } catch {
-      setError('Não foi possível cadastrar o usuário.');
+      setError('Não foi possível salvar o usuário.');
     } finally {
       setSaving(false);
     }
@@ -185,6 +214,21 @@ export function AdminUsersPage({
     } finally {
       setDeleteSaving(false);
     }
+
+  }
+
+  async function handleSaveUtec(event) {
+      event.preventDefault();
+      setUtecError('');
+      const nome = utecName.trim();
+      if (!nome || !onSaveUtec) return;
+      const result = await onSaveUtec({ acao: 'salvar_utec', id: editingUtec?.id, nome });
+      if (result?.sucesso) {
+        setUtecName('');
+        setEditingUtec(null);
+      } else {
+        setUtecError(String(result?.erro || result?.mensagem || 'Não foi possível salvar a UTEC.'));
+      }
   }
 
   return (
@@ -218,15 +262,15 @@ export function AdminUsersPage({
               </div>
               <div>
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-cetecBlue tracking-tight">
-                  Usuários do Sistema
+                  Gerenciamento do Sistema
                 </h1>
                 <p className="text-xs sm:text-sm text-gray-500 font-semibold">
-                  Cadastro, consulta e controle de permissões de acesso ao painel
+                  Usuários, UTECs, auditoria e permissões de acesso ao painel
                 </p>
               </div>
             </div>
 
-            {canManage && (
+            {canManage && activeSection === 'usuarios' && (
               <button
                 type="button"
                 onClick={openAddModal}
@@ -238,6 +282,45 @@ export function AdminUsersPage({
             )}
           </div>
 
+          <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
+            {[
+              ['usuarios', 'Contas e Usuários', 'manage_accounts'],
+              ['utecs', 'UTECs', 'apartment'],
+              ['auditoria', 'Auditoria', 'history'],
+            ].map(([value, label, icon]) => (
+              <button type="button" key={value} onClick={() => setActiveSection(value)} className={`dashboard-filter-chip ${activeSection === value ? 'is-active' : ''}`}>
+                <span className="material-symbols-rounded">{icon}</span>{label}
+              </button>
+            ))}
+          </div>
+
+          {activeSection === 'utecs' && (
+            <section className="space-y-4">
+              <form onSubmit={handleSaveUtec} className="flex flex-col sm:flex-row gap-2">
+                <input value={utecName} onChange={(event) => setUtecName(event.target.value)} placeholder="Nome da UTEC" className="flex-1 px-4 py-3 rounded-xl border border-gray-200 font-bold" required />
+                <button type="submit" className="btn-3d bg-cetecGreen text-white font-black px-5 py-3 rounded-xl">{editingUtec ? 'ATUALIZAR' : 'CADASTRAR UTEC'}</button>
+                {editingUtec && <button type="button" onClick={() => { setEditingUtec(null); setUtecName(''); }} className="px-4 py-3 rounded-xl bg-gray-200 font-bold">CANCELAR</button>}
+              </form>
+              {utecError && <p className="text-red-600 font-bold">{utecError}</p>}
+              <div className="overflow-x-auto border rounded-2xl">
+                <table className="w-full text-sm"><thead><tr className="bg-gray-50 text-left"><th className="p-3">ID</th><th className="p-3">Nome</th><th className="p-3">Ações</th></tr></thead><tbody>
+                  {utecs.map((utec) => (
+                    <tr key={utec.id} className="border-t"><td className="p-3">{utec.id}</td><td className="p-3 font-bold">{utec.nome}</td><td className="p-3 flex gap-2"><button type="button" onClick={() => { setEditingUtec(utec); setUtecName(utec.nome); }} className="text-blue-700 font-bold">Editar</button><button type="button" onClick={async () => { if (onDeleteUtec) await onDeleteUtec({ acao: 'excluir_utec', id: utec.id }); }} className="text-red-600 font-bold">Excluir</button></td></tr>
+                  ))}</tbody></table>
+              </div>
+            </section>
+          )}
+
+          {activeSection === 'auditoria' && (
+            <section className="overflow-x-auto border rounded-2xl">
+              <table className="w-full text-sm"><thead><tr className="bg-gray-50 text-left"><th className="p-3">Data</th><th className="p-3">Usuário</th><th className="p-3">Ação</th><th className="p-3">Tabela</th><th className="p-3">Registro</th><th className="p-3">Detalhes</th></tr></thead><tbody>
+                {auditoria.map((entry) => <tr key={entry.id} className="border-t"><td className="p-3 whitespace-nowrap">{entry.created_at ? new Date(entry.created_at).toLocaleString('pt-BR') : '-'}</td><td className="p-3">{entry.usuario_nome || '-'}</td><td className="p-3 font-bold">{entry.acao}</td><td className="p-3">{entry.tabela}</td><td className="p-3">{entry.id_registro || '-'}</td><td className="p-3">{JSON.stringify(entry.detalhes || {})}</td></tr>)}
+              </tbody></table>
+              {!auditoria.length && <p className="p-6 text-center text-gray-500 font-bold">Nenhuma ação auditada ainda.</p>}
+            </section>
+          )}
+
+          <div className={activeSection !== 'usuarios' ? 'hidden' : ''}>
           {/* BARRA DE PESQUISA E FILTROS */}
           <div className="flex flex-col gap-2.5">
             <div className="flex-1 flex items-center bg-white rounded-xl border border-gray-200 px-3 h-[42px] shadow-sm focus-within:border-cetecGreen focus-within:ring-2 focus-within:ring-cetecGreen/20 transition-all">
@@ -277,7 +360,9 @@ export function AdminUsersPage({
                 {filteredUsers.map((user, index) => {
                   const access = normalizeAccessLevel(user.acesso || user.tipoUsuario || user.tipo_usuario);
                   const isGlobalUser = Boolean(user.verTodasUtecs) || String(user.tipoUsuario || '').toLowerCase() === 'global' || isAnyAdmin(access);
-                  const canDeleteThisUser = canManageTargetUser(userRole, access, userName, user.nome || user.email);
+                  const isSuperAdmin = normalizeAccessLevel(userRole) === 'superadmin';
+                  const canDeleteThisUser = isSuperAdmin || canManageTargetUser(userRole, access, userName, user.nome || user.email);
+                  const canEditThisUser = canDeleteThisUser;
                   return (
                     <article key={user.id || user.email || `user-${index}`} className="bg-white rounded-2xl p-6 border-2 border-gray-100 shadow-sm hover:shadow-md transition-all flex flex-col gap-4 min-h-[240px]">
                       <div>
@@ -295,30 +380,40 @@ export function AdminUsersPage({
 
                       <div className="flex items-end justify-between mt-auto pt-4 border-t border-gray-50">
                         <span className={`status-badge ${accessClass(access)} font-black text-xs px-3 py-1.5 rounded-lg inline-flex items-center border w-fit`}>{accessLabel(access).toUpperCase()}</span>
-                        {canDeleteThisUser && (
-                          <button
-                            type="button"
-                            onClick={() => requestDelete(user)}
-                            className="bg-red-500 text-white font-black px-4 py-2.5 rounded-xl border-b-[4px] border-red-700 hover:bg-red-600 transition"
-                          >
-                            EXCLUIR
-                          </button>
+                        {canEditThisUser && (
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(user)}
+                              className="bg-blue-600 text-white font-black px-3 py-2 rounded-xl border-b-[4px] border-blue-800 hover:bg-blue-700 transition"
+                            >
+                              EDITAR
+                            </button>
+                            {canDeleteThisUser && <button
+                              type="button"
+                              onClick={() => requestDelete(user)}
+                              className="bg-red-500 text-white font-black px-3 py-2 rounded-xl border-b-[4px] border-red-700 hover:bg-red-600 transition"
+                            >
+                              EXCLUIR
+                            </button>}
+                          </div>
                         )}
                       </div>
                     </article>
                   );
                 })}
               </div>
-            </div>
-          )}
+          </div>
+        )}
         </div>
       </div>
+        </div>
       </main>
 
       <BaseModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Adicionar Usuário"
+        title={editingUser ? 'Editar Usuário' : 'Adicionar Usuário'}
         sizeClass="ui-modal-card"
         contentAs="form"
         contentProps={{ onSubmit: handleSubmit }}
@@ -332,7 +427,7 @@ export function AdminUsersPage({
             value={form.nome}
             onChange={(event) => updateField('nome', event.target.value)}
             placeholder="Nome completo"
-            required
+            required={!editingUser}
           />
           <FormTextInput
             label="E-mail"
@@ -346,9 +441,9 @@ export function AdminUsersPage({
             label="Senha"
             value={form.senha}
             onChange={(event) => updateField('senha', event.target.value)}
-            placeholder="Senha de acesso"
+            placeholder={editingUser ? 'Deixe em branco para manter a atual' : 'Senha de acesso'}
             type="password"
-            required
+            required={!editingUser}
           />
           <FormSelect
             label="Acesso"
@@ -366,14 +461,14 @@ export function AdminUsersPage({
             label="UTEC"
             value={isAnyAdmin(form.acesso) ? '' : form.utec}
             onChange={(event) => updateField('utec', event.target.value)}
-            options={isAnyAdmin(form.acesso) ? [] : options}
+            options={isAnyAdmin(form.acesso) ? [] : managedUtecOptions}
             getOptionKey={(option) => option.value}
             getOptionLabel={(option) => option.label}
             className="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-cetecGreen font-bold text-sm text-gray-700 shadow-sm appearance-none bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(248,250,252,1))] pr-11"
             selectClassName="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-cetecGreen font-bold text-sm text-gray-700 shadow-sm appearance-none bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(248,250,252,1))] pr-11"
             optionClassName="bg-white text-gray-800 font-semibold"
             disabled={isAnyAdmin(form.acesso)}
-            required={!isAnyAdmin(form.acesso)}
+            required={!editingUser && !isAnyAdmin(form.acesso)}
           />
         </div>
 

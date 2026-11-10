@@ -26,6 +26,7 @@ interface ProjetosFicFecomPageProps {
   onOpenNewClub?: () => void;
   onOpenAdminDeleteClubs?: () => void;
   onOpenAdminUsers?: () => void;
+  utecOptions?: Array<{ value: string; label: string }>;
 }
 
 export function ProjetosFicFecomPage({
@@ -42,6 +43,7 @@ export function ProjetosFicFecomPage({
   onOpenProjetosFicFecom,
   onOpenDatabaseControl,
   onOpenAdminUsers,
+  utecOptions = [],
 }: ProjetosFicFecomPageProps) {
   const [projetos, setProjetos] = useState<ProjetoFicFecom[]>(() => getStoredProjetosFicFecom());
   const [search, setSearch] = useState('');
@@ -1142,6 +1144,7 @@ export function ProjetosFicFecomPage({
         }}
         onSubmit={handleSave}
         projetoToEdit={editingProjeto}
+        utecOptions={utecOptions}
       />
 
       {/* Modal de Exportação Padronizado por UTEC */}

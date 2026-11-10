@@ -26,6 +26,7 @@ interface ClubesCompeticaoPageProps {
   onOpenNewClub?: () => void;
   onOpenAdminDeleteClubs?: () => void;
   onOpenAdminUsers?: () => void;
+  utecOptions?: Array<{ value: string; label: string }>;
 }
 
 export function ClubesCompeticaoPage({
@@ -42,6 +43,7 @@ export function ClubesCompeticaoPage({
   onOpenProjetosFicFecom,
   onOpenDatabaseControl,
   onOpenAdminUsers,
+  utecOptions = [],
 }: ClubesCompeticaoPageProps) {
   const [clubes, setClubes] = useState<ClubeCompeticao[]>(() => getStoredClubesCompeticao());
   const [search, setSearch] = useState('');
@@ -1225,6 +1227,7 @@ export function ClubesCompeticaoPage({
         }}
         onSubmit={handleSave}
         clubeToEdit={editingClube}
+        utecOptions={utecOptions}
       />
 
       {/* Modal de Cadastro de Aluno no Clube */}
