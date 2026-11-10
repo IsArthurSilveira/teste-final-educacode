@@ -687,16 +687,7 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
         const tipoUsuario = String(payload.tipo_usuario || payload.tipoUsuario || 'utec').trim().toLowerCase();
         const idUtec = payload.id_utec || payload.idUtec || null;
         const verTodasUtecs = Boolean(payload.ver_todas_utecs ?? payload.verTodasUtecs ?? false);
-        const senha = String(payload.senha || '').trim();
-
         if (userId) {
-          if (senha) {
-            return {
-              sucesso: false,
-              erro: 'A senha deve ser alterada em Authentication > Users no Supabase.',
-            } as unknown as TResponse;
-          }
-
           const updateData: Record<string, unknown> = {
             nome,
             email,
@@ -715,17 +706,32 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
           return { sucesso: true, id: userId, mensagem: 'Usuário atualizado com sucesso.' } as unknown as TResponse;
         }
 
-        if (!senha) {
-          return {
-            sucesso: false,
-            erro: 'Crie a conta em Authentication > Users no Supabase antes de cadastrar o perfil.',
-          } as unknown as TResponse;
+        if (!email || !nome) {
+          return { sucesso: false, erro: 'Nome e e-mail são obrigatórios.' } as unknown as TResponse;
         }
 
-        return {
-          sucesso: false,
-          erro: 'A criação de contas deve ser feita no Supabase Auth; depois cadastre o perfil sem expor a senha.',
-        } as unknown as TResponse;
+        const { data, error } = await supabase
+          .from('usuarios')
+          .insert({
+            nome,
+            email,
+            acesso,
+            tipo_usuario: tipoUsuario,
+            id_utec: isAnyAdminAccess(acesso) ? null : idUtec,
+            ver_todas_utecs: verTodasUtecs,
+          })
+          .select('id')
+          .single();
+
+        if (error) {
+          if (error.code === '23505') {
+            return { sucesso: false, erro: 'Já existe um perfil cadastrado com este e-mail.' } as unknown as TResponse;
+          }
+          throw error;
+        }
+
+        await registrarAuditoria('cadastrar', 'usuarios', data?.id, { nome, email, acesso });
+        return { sucesso: true, id: data?.id, mensagem: 'Perfil cadastrado com sucesso.' } as unknown as TResponse;
       }
 
       case 'excluir_usuario':
