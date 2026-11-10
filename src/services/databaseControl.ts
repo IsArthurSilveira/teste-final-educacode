@@ -208,8 +208,9 @@ export async function exportDatabaseToExcel(customFilename?: string): Promise<{ 
       'ESCOLA': c.escola || '',
       'CLUBE': c.nome || 'Não associado',
       'NOME DO ALUNO': a.nome || '',
-      'GÊNERO': a.sexo || a.genero || 'M',
       'MATRÍCULA': a.matricula || '',
+      'GÊNERO': a.sexo || a.genero || 'M',
+      'TAMANHO DE CAMISA': a.tamanho_camisa || a.tamanhoCamisa || 'M',
       'DATA DE REGISTRO': a.data_registro || a.created_at || '',
     };
   });
@@ -266,9 +267,10 @@ export async function exportDatabaseToExcel(customFilename?: string): Promise<{ 
         'ESCOLA': c.escola,
         'UTEC': c.utec,
         'NOME DO ALUNO': a.nome,
-        'GÊNERO': a.genero === 'F' ? 'Feminino' : 'Masculino',
-        'TURMA': a.turma || '',
         'MATRÍCULA': a.matricula || '',
+        'GÊNERO': a.genero === 'F' ? 'Feminino' : 'Masculino',
+        'TAMANHO DE CAMISA': a.tamanhoCamisa || 'M',
+        'TURMA': a.turma || '',
         'DATA REGISTRO': a.dataRegistro || '',
       });
     });
@@ -285,15 +287,15 @@ export async function exportDatabaseToExcel(customFilename?: string): Promise<{ 
     'UTEC': p.utec,
     'STATUS': p.status,
     'DISPOSITIVOS / RECURSOS': (p.recursosRobotica || []).join(', '),
-    'JUSTIFICATIVA / TEMÁTICA': p.justificativa,
-    'PROCESSO DE CONSTRUÇÃO': p.processoConstrucao,
-    'PENSAR BRINCANDO': p.pensarBrincando,
-    'P DE PROPÓSITO': p.pDeProposito,
+    'JUSTIFICATIVA / TEMÁTICA': p.justificativaTematica || p.justificativa || '',
+    'PROCESSO DE CONSTRUÇÃO': p.processoConstrucao || '',
+    'PENSAR BRINCANDO': p.pensarBrincando || '',
+    'P DE PROPÓSITO': p.propositoColetivo || p.pDeProposito || '',
     'CONTEÚDOS ESCOLARES': p.conteudosEscolares || '',
     'COMPETÊNCIAS BNCC': p.competenciasBncc || '',
     'HABILIDADES BNCC': p.habilidadesBncc || '',
     'TOTAL REPRESENTANTES': p.integrantesList?.length || 0,
-    'DATA CRIAÇÃO': p.dataCriacao,
+    'DATA CRIAÇÃO': p.dataCadastro || p.dataCriacao || '',
   }));
   const wsProjetos = utils.json_to_sheet(projetosRows);
   utils.book_append_sheet(wb, wsProjetos, 'Projetos_FIC_FECOM');
@@ -308,8 +310,10 @@ export async function exportDatabaseToExcel(customFilename?: string): Promise<{ 
         'ESCOLA': p.escola,
         'UTEC': p.utec,
         'NOME DO INTEGRANTE': m.nome,
+        'MATRÍCULA': m.matricula || '',
         'ANO / SÉRIE ESCOLAR': m.anoEscolar,
-        'ATRIBUIÇÕES': m.atribuicoes || '',
+        'GÊNERO': m.genero === 'F' ? 'Feminino' : 'Masculino',
+        'TAMANHO DE CAMISA': m.tamanhoCamisa || 'M',
       });
     });
   });
@@ -410,7 +414,8 @@ export async function downloadAllTablesAsCsv(): Promise<void> {
     ID_CLUBE: a.id_clube,
     NOME: a.nome,
     MATRICULA: a.matricula,
-    GENERO: a.sexo,
+    GENERO: a.sexo || a.genero || 'M',
+    TAMANHO_CAMISA: a.tamanho_camisa || a.tamanhoCamisa || 'M',
     DATA_REGISTRO: a.data_registro,
   }));
   downloadCsvFile(convertToCsv(alunosData), `CETEC_Alunos_${dateStr}.csv`);
@@ -429,7 +434,26 @@ export async function downloadAllTablesAsCsv(): Promise<void> {
   }));
   downloadCsvFile(convertToCsv(compData), `CETEC_Clubes_Competicao_${dateStr}.csv`);
 
-  // 4. Projetos FIC / FECOM
+  // 4. Competidores das Equipes
+  const compAlunosData: any[] = [];
+  dump.clubesCompeticao.forEach((c) => {
+    (c.alunosList || []).forEach((a) => {
+      compAlunosData.push({
+        EQUIPE: c.nome,
+        TORNEIO: c.competicao,
+        ESCOLA: c.escola,
+        UTEC: c.utec,
+        NOME_ALUNO: a.nome,
+        MATRICULA: a.matricula || '',
+        GENERO: a.genero === 'F' ? 'F' : 'M',
+        TAMANHO_CAMISA: a.tamanhoCamisa || 'M',
+        TURMA: a.turma || '',
+      });
+    });
+  });
+  downloadCsvFile(convertToCsv(compAlunosData), `CETEC_Competidores_Equipes_${dateStr}.csv`);
+
+  // 5. Projetos FIC / FECOM
   const ficData = dump.projetosFicFecom.map((p) => ({
     ID: p.id,
     TITULO: p.titulo,
@@ -437,15 +461,34 @@ export async function downloadAllTablesAsCsv(): Promise<void> {
     ESCOLA: p.escola,
     UTEC: p.utec,
     STATUS: p.status,
-    JUSTIFICATIVA: p.justificativa,
-    PROCESSO: p.processoConstrucao,
-    PENSAR_BRINCANDO: p.pensarBrincando,
-    PROPOSITO: p.pDeProposito,
+    JUSTIFICATIVA: p.justificativaTematica || p.justificativa || '',
+    PROCESSO: p.processoConstrucao || '',
+    PENSAR_BRINCANDO: p.pensarBrincando || '',
+    PROPOSITO: p.propositoColetivo || p.pDeProposito || '',
     CONTEUDOS_ESCOLARES: p.conteudosEscolares || '',
     COMPETENCIAS_BNCC: p.competenciasBncc || '',
     HABILIDADES_BNCC: p.habilidadesBncc || '',
   }));
   downloadCsvFile(convertToCsv(ficData), `CETEC_Projetos_FIC_FECOM_${dateStr}.csv`);
+
+  // 6. Integrantes dos Projetos
+  const ficAlunosData: any[] = [];
+  dump.projetosFicFecom.forEach((p) => {
+    (p.integrantesList || []).forEach((m) => {
+      ficAlunosData.push({
+        PROJETO: p.titulo,
+        MODALIDADE: p.modalidade,
+        ESCOLA: p.escola,
+        UTEC: p.utec,
+        NOME_INTEGRANTE: m.nome,
+        MATRICULA: m.matricula || '',
+        ANO_ESCOLAR: m.anoEscolar,
+        GENERO: m.genero === 'F' ? 'F' : 'M',
+        TAMANHO_CAMISA: m.tamanhoCamisa || 'M',
+      });
+    });
+  });
+  downloadCsvFile(convertToCsv(ficAlunosData), `CETEC_Integrantes_Projetos_${dateStr}.csv`);
 }
 
 /**

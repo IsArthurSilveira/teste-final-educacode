@@ -3,8 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { AppSidebar } from '../components/AppSidebar';
 import { statusKey } from '../utils/clubes';
 import { ConfirmPasswordModal } from '../components/ui/ConfirmPasswordModal';
+import { ClubFormModal } from '../components/ClubFormModal';
 
-export function ClubsPanelPage({ userName, allowCreateClub, allowAdminTools = false, allowUsersTools = false, onLogout, onOpenNewClubModal, onOpenAdminDeleteClubs, onOpenAdminUsers, clubes, loading, error, onDeleteClub, onRefreshClubs }) {
+export function ClubsPanelPage({
+  userName,
+  allowCreateClub,
+  allowAdminTools = false,
+  allowUsersTools = false,
+  onLogout,
+  onOpenNewClubModal,
+  onOpenAdminDeleteClubs,
+  onOpenAdminUsers,
+  clubes,
+  loading,
+  error,
+  onDeleteClub,
+  onRefreshClubs,
+  onSaveClub,
+  utecOptions = [],
+}) {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [quickFilter, setQuickFilter] = useState('all');
@@ -14,6 +31,40 @@ export function ClubsPanelPage({ userName, allowCreateClub, allowAdminTools = fa
   const [clubToDelete, setClubToDelete] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+  // Edição In-Place do Clube (Abre modal por cima sem tela branca)
+  const [editingClub, setEditingClub] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  async function handleSaveEditedClub(form) {
+    setEditSaving(true);
+    setEditError('');
+    try {
+      const id = resolveClubId(editingClub, clubes) || editingClub?.id;
+      const payload = {
+        acao: 'atualizar_clube',
+        id_clube: id,
+        ...form,
+        status: editingClub?.status || 'pendente',
+      };
+      if (onSaveClub) {
+        const res = await onSaveClub(payload);
+        if (res?.sucesso) {
+          setEditModalOpen(false);
+          setEditingClub(null);
+          if (onRefreshClubs) await onRefreshClubs();
+          return;
+        }
+        setEditError(res?.erro || res?.mensagem || 'Erro ao salvar o clube.');
+      }
+    } catch {
+      setEditError('Falha ao salvar clube.');
+    } finally {
+      setEditSaving(false);
+    }
+  }
 
   const normalizedSearch = search.trim().toLowerCase();
 
@@ -229,10 +280,9 @@ export function ClubsPanelPage({ userName, allowCreateClub, allowAdminTools = fa
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const targetId = resolveClubId(clube, clubes);
-                                if (targetId) {
-                                  navigate(`/clubes/${encodeURIComponent(targetId)}/editar`);
-                                }
+                                setEditingClub(clube);
+                                setEditError('');
+                                setEditModalOpen(true);
                               }}
                               className="p-1.5 rounded-lg text-gray-400 hover:text-cetecGreen hover:bg-emerald-50 transition cursor-pointer"
                               title="Editar informações do clube"
@@ -308,6 +358,23 @@ export function ClubsPanelPage({ userName, allowCreateClub, allowAdminTools = fa
             }
           }}
         />
+
+        {editModalOpen && editingClub && (
+          <ClubFormModal
+            key={editingClub.id || 'edit-club'}
+            open={editModalOpen}
+            title={`Editar Clube: ${editingClub.nome || ''}`}
+            initialValues={editingClub}
+            utecOptions={utecOptions}
+            onClose={() => {
+              setEditModalOpen(false);
+              setEditingClub(null);
+            }}
+            onSubmit={handleSaveEditedClub}
+            saving={editSaving}
+            error={editError}
+          />
+        )}
       </main>
     </div>
   );

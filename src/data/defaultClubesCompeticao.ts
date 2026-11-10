@@ -3,6 +3,7 @@ export interface AlunoCompeticao {
   matricula: string;
   nome: string;
   genero: 'M' | 'F';
+  tamanhoCamisa: string;
   dataRegistro: string;
 }
 
@@ -45,12 +46,12 @@ export const DEFAULT_CLUBES_COMPETICAO: ClubeCompeticao[] = [
     horario: '14:00 às 17:00',
     status: 'em_andamento',
     alunosList: [
-      { id: 'al-1', matricula: '2026011', nome: 'Arthur Silveira de Souza', genero: 'M', dataRegistro: '10/02/2026' },
-      { id: 'al-2', matricula: '2026012', nome: 'Beatriz Vasconcelos', genero: 'F', dataRegistro: '10/02/2026' },
-      { id: 'al-3', matricula: '2026013', nome: 'Caio Felipe Mendes', genero: 'M', dataRegistro: '11/02/2026' },
-      { id: 'al-4', matricula: '2026014', nome: 'Daniela Lima Ferreira', genero: 'F', dataRegistro: '11/02/2026' },
-      { id: 'al-5', matricula: '2026015', nome: 'Eduardo Albuquerque Neto', genero: 'M', dataRegistro: '12/02/2026' },
-      { id: 'al-6', matricula: '2026016', nome: 'Fernanda Caroline Silva', genero: 'F', dataRegistro: '12/02/2026' },
+      { id: 'al-1', matricula: '2026011', nome: 'Arthur Silveira de Souza', genero: 'M', tamanhoCamisa: 'M', dataRegistro: '10/02/2026' },
+      { id: 'al-2', matricula: '2026012', nome: 'Beatriz Vasconcelos', genero: 'F', tamanhoCamisa: 'P', dataRegistro: '10/02/2026' },
+      { id: 'al-3', matricula: '2026013', nome: 'Caio Felipe Mendes', genero: 'M', tamanhoCamisa: 'G', dataRegistro: '11/02/2026' },
+      { id: 'al-4', matricula: '2026014', nome: 'Daniela Lima Ferreira', genero: 'F', tamanhoCamisa: '16', dataRegistro: '11/02/2026' },
+      { id: 'al-5', matricula: '2026015', nome: 'Eduardo Albuquerque Neto', genero: 'M', tamanhoCamisa: 'M', dataRegistro: '12/02/2026' },
+      { id: 'al-6', matricula: '2026016', nome: 'Fernanda Caroline Silva', genero: 'F', tamanhoCamisa: '14', dataRegistro: '12/02/2026' },
     ],
     encontrosList: [
       { id: 'enc-1', data: '2026-03-03', assunto: 'Análise do Tapete de Missões FLL', detalhamento: 'Estudo do regulamento da temporada e pontuação de cada missão.', quantidadeAlunos: '6', status: 'concluido' },
@@ -197,7 +198,14 @@ export function getStoredClubesCompeticao(): ClubeCompeticao[] {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CLUBES_COMPETICAO));
       return DEFAULT_CLUBES_COMPETICAO;
     }
-    return parsed;
+    return parsed.map((clube) => ({
+      ...clube,
+      alunosList: (clube.alunosList || []).map((a: any) => ({
+        ...a,
+        tamanhoCamisa: a.tamanhoCamisa || 'M',
+        genero: a.genero || 'M',
+      })),
+    }));
   } catch {
     return DEFAULT_CLUBES_COMPETICAO;
   }

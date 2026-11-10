@@ -55,10 +55,16 @@ export function ClubesCompeticaoPage({
 
   // Modais de Aluno e Aula/Encontro
   const [showAlunoModal, setShowAlunoModal] = useState(false);
-  const [novoAluno, setNovoAluno] = useState<{ matricula: string; nome: string; genero: 'M' | 'F' }>({
+  const [novoAluno, setNovoAluno] = useState<{
+    matricula: string;
+    nome: string;
+    genero: 'M' | 'F';
+    tamanhoCamisa: string;
+  }>({
     matricula: '',
     nome: '',
     genero: 'M',
+    tamanhoCamisa: 'M',
   });
   const [showEncontroModal, setShowEncontroModal] = useState(false);
   const [novoEncontro, setNovoEncontro] = useState({
@@ -387,18 +393,28 @@ export function ClubesCompeticaoPage({
     }
   }
 
+  // Modal de Excluir Clube
+  const [clubeToDelete, setClubeToDelete] = useState<ClubeCompeticao | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+
   function handleSave(clube: ClubeCompeticao) {
     const updated = saveClubeCompeticao(clube);
     setClubes(updated);
     setEditingClube(null);
   }
 
-  function handleDelete(id: string) {
-    if (window.confirm('Deseja realmente remover esta equipe de competição?')) {
-      const updated = deleteClubeCompeticao(id);
-      setClubes(updated);
-      if (selectedClubId === id) setSelectedClubId(null);
-    }
+  function handleOpenDeleteModal(clube: ClubeCompeticao) {
+    setClubeToDelete(clube);
+    setDeleteModalOpen(true);
+  }
+
+  function handleConfirmDeleteClube() {
+    if (!clubeToDelete) return;
+    const updated = deleteClubeCompeticao(clubeToDelete.id);
+    setClubes(updated);
+    if (selectedClubId === clubeToDelete.id) setSelectedClubId(null);
+    setDeleteModalOpen(false);
+    setClubeToDelete(null);
   }
 
   // Ações de Alunos no Clube Selecionado
@@ -411,6 +427,7 @@ export function ClubesCompeticaoPage({
       matricula: novoAluno.matricula.trim() || 'S/ MATRÍCULA',
       nome: novoAluno.nome.trim(),
       genero: novoAluno.genero,
+      tamanhoCamisa: novoAluno.tamanhoCamisa || 'M',
       dataRegistro: new Date().toLocaleDateString('pt-BR'),
     };
 
@@ -420,7 +437,7 @@ export function ClubesCompeticaoPage({
     };
 
     handleSave(updatedClube);
-    setNovoAluno({ matricula: '', nome: '', genero: 'M' });
+    setNovoAluno({ matricula: '', nome: '', genero: 'M', tamanhoCamisa: 'M' });
     setShowAlunoModal(false);
   }
 
@@ -541,14 +558,39 @@ export function ClubesCompeticaoPage({
                   <span>Voltar aos Clubes de Competição</span>
                 </button>
 
-                <button
-                  onClick={() => setSelectedClubId(null)}
-                  className="w-8 h-8 rounded-full bg-red-100 text-red-600 border border-red-200 hover:bg-red-500 hover:text-white transition shadow-xs font-black text-xs flex items-center justify-center cursor-pointer"
-                  type="button"
-                  aria-label="Fechar detalhes"
-                >
-                  ✕
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingClube(selectedClube);
+                      setModalOpen(true);
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                  >
+                    <span className="material-symbols-rounded text-sm">edit</span>
+                    <span>Editar Informações</span>
+                  </button>
+
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDeleteModal(selectedClube)}
+                      className="px-3 py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                    >
+                      <span className="material-symbols-rounded text-sm">delete</span>
+                      <span>Excluir Clube</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setSelectedClubId(null)}
+                    className="w-8 h-8 rounded-full bg-red-100 text-red-600 border border-red-200 hover:bg-red-500 hover:text-white transition shadow-xs font-black text-xs flex items-center justify-center cursor-pointer"
+                    type="button"
+                    aria-label="Fechar detalhes"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
 
               {/* Card Superior de Informações do Clube */}
@@ -682,9 +724,14 @@ export function ClubesCompeticaoPage({
                                   {aluno.genero === 'F' ? 'Fem' : 'Masc'}
                                 </span>
                               </div>
-                              <span className="block text-[10px] font-bold text-gray-400">
-                                MAT: {aluno.matricula}
-                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                                <span className="block text-[10px] font-bold text-gray-400">
+                                  MAT: {aluno.matricula}
+                                </span>
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                                  Camisa: {aluno.tamanhoCamisa || 'M'}
+                                </span>
+                              </div>
                             </div>
                           </div>
 
@@ -1133,7 +1180,7 @@ export function ClubesCompeticaoPage({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDelete(clube.id);
+                                handleOpenDeleteModal(clube);
                               }}
                               className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
                               title="Excluir clube"
@@ -1244,6 +1291,28 @@ export function ClubesCompeticaoPage({
                 <span className="material-symbols-rounded text-base">female</span>
                 <span>Feminino (F)</span>
               </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+              Tamanho de Camisa *
+            </label>
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
+              {['10', '12', '14', '16', 'PP', 'P', 'M', 'G', 'GG', 'XGG'].map((tamanho) => (
+                <button
+                  key={tamanho}
+                  type="button"
+                  onClick={() => setNovoAluno({ ...novoAluno, tamanhoCamisa: tamanho })}
+                  className={`py-2 rounded-xl text-xs font-black border transition cursor-pointer ${
+                    novoAluno.tamanhoCamisa === tamanho
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                      : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  {tamanho}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1478,6 +1547,72 @@ export function ClubesCompeticaoPage({
                 className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-black transition cursor-pointer"
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </BaseModal>
+      )}
+
+      {/* Modal de Excluir Clube de Competição Padronizado */}
+      {deleteModalOpen && clubeToDelete && (
+        <BaseModal
+          open={deleteModalOpen}
+          onClose={() => {
+            setDeleteModalOpen(false);
+            setClubeToDelete(null);
+          }}
+          title="Excluir Clube de Competição"
+          size="sm"
+        >
+          <div className="space-y-4 text-left">
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <span className="material-symbols-rounded text-xl">warning</span>
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-rose-950 uppercase tracking-wider">
+                  Confirmação de Exclusão
+                </h4>
+                <p className="text-[11px] font-semibold text-rose-800">
+                  Esta ação é irreversível e removerá permanentemente a equipe e todos os seus dados.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-1">
+              <p className="text-xs font-black text-gray-900">
+                {clubeToDelete.nome}
+              </p>
+              <p className="text-[11px] font-semibold text-gray-600">
+                Escola: <strong>{clubeToDelete.escola}</strong> ({clubeToDelete.utec})
+              </p>
+              <div className="flex items-center gap-2 pt-1 text-[10px] font-bold text-gray-500">
+                <span>{clubeToDelete.alunosList?.length || 0} competidores</span>
+                <span>•</span>
+                <span>{clubeToDelete.encontrosList?.length || 0} treinos</span>
+                <span>•</span>
+                <span className="uppercase text-amber-700 font-black">{clubeToDelete.competicao}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setClubeToDelete(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteClube}
+                className="btn-3d px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black border-b-[4px] border-rose-800 transition cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <span className="material-symbols-rounded text-sm">delete</span>
+                <span>Excluir Clube</span>
               </button>
             </div>
           </div>

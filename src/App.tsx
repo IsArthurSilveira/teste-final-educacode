@@ -339,6 +339,8 @@ function AppRoutes() {
               clubes={clubes}
               loading={loading}
               error={error}
+              onSaveClub={saveClub}
+              utecOptions={utecOptions as never[]}
             />
           )}
         />

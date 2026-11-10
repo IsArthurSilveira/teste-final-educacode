@@ -24,7 +24,7 @@ export function ClubDetailPage({ userName, userRole, allowAdminTools = false, al
   const [alunoLoadingMap, setAlunoLoadingMap] = useState({});
   const [encontroLoadingMap, setEncontroLoadingMap] = useState({});
   const [confirmRemoval, setConfirmRemoval] = useState(null);
-  const [novoAluno, setNovoAluno] = useState({ matricula: '', nome: '' });
+  const [novoAluno, setNovoAluno] = useState({ matricula: '', nome: '', sexo: 'M', tamanhoCamisa: 'M' });
   const [novoEncontro, setNovoEncontro] = useState({ modulo: '', assunto: '', detalhamento: '', frequencia: '', quantidadeAlunos: '', data: '' });
   const meetingSearch = '';
   const [showEstagModal, setShowEstagModal] = useState(false);
@@ -95,9 +95,18 @@ export function ClubDetailPage({ userName, userRole, allowAdminTools = false, al
     setSavingAluno(true);
     setActionError('');
     try {
-      const response = await onSaveAluno({ acao: 'salvar_aluno', id_clube: club.id, matricula: novoAluno.matricula || 'S/ MATRÍCULA', nome: novoAluno.nome });
+      const response = await onSaveAluno({
+        acao: 'salvar_aluno',
+        id_clube: club.id,
+        matricula: novoAluno.matricula || 'S/ MATRÍCULA',
+        nome: novoAluno.nome,
+        sexo: novoAluno.sexo || 'M',
+        genero: novoAluno.sexo || 'M',
+        tamanho_camisa: novoAluno.tamanhoCamisa || 'M',
+        tamanhoCamisa: novoAluno.tamanhoCamisa || 'M',
+      });
       if (response?.sucesso) {
-        setNovoAluno({ matricula: '', nome: '' });
+        setNovoAluno({ matricula: '', nome: '', sexo: 'M', tamanhoCamisa: 'M' });
         setShowAlunoModal(false);
         await refreshDetails();
       } else {
@@ -549,16 +558,32 @@ export function ClubDetailPage({ userName, userRole, allowAdminTools = false, al
                         className="p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between gap-2"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-full font-black text-xs flex items-center justify-center shrink-0 bg-blue-100 text-cetecBlue">
-                            <span className="material-symbols-rounded text-base">person</span>
+                          <div className={`w-8 h-8 rounded-full font-black text-xs flex items-center justify-center shrink-0 ${
+                            (aluno.sexo === 'F' || aluno.genero === 'F') ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-cetecBlue'
+                          }`}>
+                            <span className="material-symbols-rounded text-base">
+                              {(aluno.sexo === 'F' || aluno.genero === 'F') ? 'female' : 'person'}
+                            </span>
                           </div>
                           <div className="min-w-0">
                             <span className="block font-black text-xs text-gray-900 truncate">
                               {aluno.nome}
                             </span>
-                            <span className="block text-[10px] font-bold text-gray-400">
-                              MAT: {aluno.matricula || 'S/ MATRÍCULA'}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                              <span className="block text-[10px] font-bold text-gray-400">
+                                MAT: {aluno.matricula || 'S/ MATRÍCULA'}
+                              </span>
+                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border uppercase ${
+                                (aluno.sexo === 'F' || aluno.genero === 'F')
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              }`}>
+                                {(aluno.sexo === 'F' || aluno.genero === 'F') ? 'Fem' : 'Masc'}
+                              </span>
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                                Camisa: {aluno.tamanhoCamisa || aluno.tamanho_camisa || 'M'}
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -636,8 +661,7 @@ export function ClubDetailPage({ userName, userRole, allowAdminTools = false, al
           open={showAlunoModal}
           onClose={() => setShowAlunoModal(false)}
           title="Adicionar Aluno ao Clube"
-          backdropClass="fixed inset-0 bg-cetecBlue/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          sizeClass="ui-modal-card ui-modal-card--sm"
+          size="sm"
           contentAs="form"
           contentProps={{ onSubmit: handleSaveAluno }}
           bodyClass="ui-modal-body space-y-4"
@@ -680,6 +704,61 @@ export function ClubDetailPage({ userName, userRole, allowAdminTools = false, al
             />
           </div>
 
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+              Gênero do Aluno *
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setNovoAluno((curr) => ({ ...curr, sexo: 'M' }))}
+                className={`py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  novoAluno.sexo === 'M'
+                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                <span className="material-symbols-rounded text-base">male</span>
+                <span>Masculino (M)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setNovoAluno((curr) => ({ ...curr, sexo: 'F' }))}
+                className={`py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  novoAluno.sexo === 'F'
+                    ? 'bg-rose-600 text-white border-rose-700 shadow-xs'
+                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                <span className="material-symbols-rounded text-base">female</span>
+                <span>Feminino (F)</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+              Tamanho de Camisa *
+            </label>
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5">
+              {['10', '12', '14', '16', 'PP', 'P', 'M', 'G', 'GG', 'XGG'].map((tamanho) => (
+                <button
+                  key={tamanho}
+                  type="button"
+                  onClick={() => setNovoAluno((curr) => ({ ...curr, tamanhoCamisa: tamanho }))}
+                  className={`py-2 rounded-xl text-xs font-black border transition cursor-pointer ${
+                    novoAluno.tamanhoCamisa === tamanho
+                      ? 'bg-cetecBlue text-white border-cetecBlueDark shadow-xs'
+                      : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  {tamanho}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <ModalActionRow
             onCancel={() => setShowAlunoModal(false)}
             submitLabel="Salvar Aluno"
@@ -694,8 +773,7 @@ export function ClubDetailPage({ userName, userRole, allowAdminTools = false, al
           open={showEncontroModal}
           onClose={() => setShowEncontroModal(false)}
           title={novoEncontro.id ? 'Editar Encontro' : 'Adicionar Encontro'}
-          backdropClass="fixed inset-0 bg-cetecBlue/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          sizeClass="ui-modal-card ui-modal-card--compact"
+          size="md"
           contentAs="form"
           contentProps={{ onSubmit: handleSaveEncontro }}
           bodyClass="ui-modal-body space-y-4"
@@ -789,8 +867,7 @@ export function ClubDetailPage({ userName, userRole, allowAdminTools = false, al
           open={showEstagModal}
           onClose={() => setShowEstagModal(false)}
           title="Editar Estagiário"
-          backdropClass="fixed inset-0 bg-cetecBlue/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          sizeClass="ui-modal-card ui-modal-card--sm"
+          size="sm"
           contentAs="form"
           contentProps={{ onSubmit: handleSaveEstag }}
           bodyClass="ui-modal-body space-y-4"
@@ -832,8 +909,7 @@ export function ClubDetailPage({ userName, userRole, allowAdminTools = false, al
           open={Boolean(confirmRemoval)}
           onClose={() => setConfirmRemoval(null)}
           title="Confirmar Remoção"
-          backdropClass="fixed inset-0 bg-cetecBlue/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          sizeClass="ui-modal-card ui-modal-card--sm"
+          size="sm"
           contentAs="form"
           contentProps={{ onSubmit: handleConfirmRemoval }}
           bodyClass="ui-modal-body space-y-4"
@@ -893,7 +969,7 @@ function ModuloSection({
             {encontros.length}
           </span>
         </div>
-        <span className="text-white text-base font-bold group-open:rotate-180 transition-transform leading-none">
+        <span className="material-symbols-rounded text-white text-xl font-bold group-open:rotate-180 transition-transform leading-none">
           expand_more
         </span>
       </summary>

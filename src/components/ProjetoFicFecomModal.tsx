@@ -30,7 +30,14 @@ export function ProjetoFicFecomModal({
   const [status, setStatus] = useState<'pendente' | 'em_andamento' | 'concluido'>('em_andamento');
 
   // Integrantes
-  const [integrantesTexto, setIntegrantesTexto] = useState('');
+  const [integrantesList, setIntegrantesList] = useState<IntegranteProjeto[]>([]);
+  const [novoIntegranteNome, setNovoIntegranteNome] = useState('');
+  const [novoIntegranteMatricula, setNovoIntegranteMatricula] = useState('');
+  const [novoIntegranteAno, setNovoIntegranteAno] = useState('');
+  const [novoIntegranteGenero, setNovoIntegranteGenero] = useState<'M' | 'F'>('M');
+  const [novoIntegranteTamanho, setNovoIntegranteTamanho] = useState('M');
+  const [mostrarImportacaoLote, setMostrarImportacaoLote] = useState(false);
+  const [integrantesLoteTexto, setIntegrantesLoteTexto] = useState('');
 
   // Perguntas do formulário da mostra
   const [justificativaTematica, setJustificativaTematica] = useState('');
@@ -64,11 +71,16 @@ export function ProjetoFicFecomModal({
       setCompetenciasBncc(projetoToEdit.competenciasBncc || '');
       setHabilidadesBncc(projetoToEdit.habilidadesBncc || '');
 
-      // Integrantes para o textarea
-      const integrantesStr = (projetoToEdit.integrantesList || [])
-        .map((i) => `${i.nome} - ${i.anoEscolar}`)
-        .join('\n');
-      setIntegrantesTexto(integrantesStr);
+      setIntegrantesList(
+        (projetoToEdit.integrantesList || []).map((i, idx) => ({
+          id: i.id || `int-${Date.now()}-${idx}`,
+          nome: i.nome || '',
+          matricula: i.matricula || `2025${String(idx + 1).padStart(4, '0')}`,
+          anoEscolar: i.anoEscolar || '8º Ano',
+          genero: (i.genero === 'F' ? 'F' : 'M') as 'M' | 'F',
+          tamanhoCamisa: i.tamanhoCamisa || 'M',
+        }))
+      );
     } else {
       setTitulo('');
       setModalidade('FIC');
@@ -77,7 +89,12 @@ export function ProjetoFicFecomModal({
       setProfessor('');
       setEstagiario('');
       setStatus('em_andamento');
-      setIntegrantesTexto('');
+      setIntegrantesList([]);
+      setNovoIntegranteNome('');
+      setNovoIntegranteMatricula('');
+      setNovoIntegranteAno('');
+      setNovoIntegranteGenero('M');
+      setNovoIntegranteTamanho('M');
       setJustificativaTematica('');
       setProcessoConstrucao('');
       setPensarBrincando('');
@@ -91,6 +108,45 @@ export function ProjetoFicFecomModal({
     setActiveTab('geral');
   }, [projetoToEdit, open]);
 
+  function handleAddIntegrante() {
+    if (!novoIntegranteNome.trim()) return;
+    const novo: IntegranteProjeto = {
+      id: `int-${Date.now()}`,
+      nome: novoIntegranteNome.trim(),
+      matricula: novoIntegranteMatricula.trim() || `2025${Math.floor(1000 + Math.random() * 9000)}`,
+      anoEscolar: novoIntegranteAno.trim() || '8º Ano',
+      genero: novoIntegranteGenero,
+      tamanhoCamisa: novoIntegranteTamanho || 'M',
+    };
+    setIntegrantesList([...integrantesList, novo]);
+    setNovoIntegranteNome('');
+    setNovoIntegranteMatricula('');
+    setNovoIntegranteAno('');
+  }
+
+  function handleRemoveIntegrante(id: string) {
+    setIntegrantesList(integrantesList.filter((i) => i.id !== id));
+  }
+
+  function handleImportarLote() {
+    if (!integrantesLoteTexto.trim()) return;
+    const lines = integrantesLoteTexto.split('\n').map((l) => l.trim()).filter(Boolean);
+    const parsed: IntegranteProjeto[] = lines.map((line, idx) => {
+      const parts = line.split('-').map((p) => p.trim());
+      return {
+        id: `int-${Date.now()}-${idx}`,
+        nome: parts[0] || `Aluno ${idx + 1}`,
+        matricula: parts[1] || `2025${Math.floor(1000 + Math.random() * 9000)}`,
+        anoEscolar: parts[2] || '8º Ano',
+        genero: 'M' as const,
+        tamanhoCamisa: 'M',
+      };
+    });
+    setIntegrantesList([...integrantesList, ...parsed]);
+    setIntegrantesLoteTexto('');
+    setMostrarImportacaoLote(false);
+  }
+
   function handleToggleRecurso(recurso: string) {
     if (recursosRobotica.includes(recurso)) {
       setRecursosRobotica(recursosRobotica.filter((r) => r !== recurso));
@@ -102,22 +158,6 @@ export function ProjetoFicFecomModal({
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
-    // Parse integrantes
-    const parsedIntegrantes = integrantesTexto
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line, idx) => {
-        const parts = line.split('-').map((p) => p.trim());
-        const nome = parts[0] || `Integrante ${idx + 1}`;
-        const anoEscolar = parts[1] || 'Ano não informado';
-        return {
-          id: `int-${Date.now()}-${idx}`,
-          nome,
-          anoEscolar,
-        };
-      });
-
     const projetoPayload: ProjetoFicFecom = {
       id: projetoToEdit?.id || `proj-${Date.now()}`,
       titulo: titulo.trim(),
@@ -128,7 +168,7 @@ export function ProjetoFicFecomModal({
       estagiario: estagiario.trim(),
       status,
       dataCadastro: projetoToEdit?.dataCadastro || new Date().toISOString().split('T')[0],
-      integrantesList: parsedIntegrantes.length > 0 ? parsedIntegrantes : (projetoToEdit?.integrantesList || []),
+      integrantesList,
       justificativaTematica: justificativaTematica.trim(),
       processoConstrucao: processoConstrucao.trim(),
       pensarBrincando: pensarBrincando.trim(),
@@ -347,22 +387,233 @@ export function ProjetoFicFecomModal({
         {/* ABA 2: INTEGRANTES DA EQUIPE */}
         {/* ============================================================ */}
         {activeTab === 'integrantes' && (
-          <div className="space-y-3.5 animate-[fadeIn_0.2s_ease-in-out]">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                2. Nomes completos e anos que estudam dos integrantes *
-              </label>
-              <p className="text-[11px] text-gray-500 mb-2 font-medium">
-                Insira cada integrante em uma linha (Formato: <strong>Nome Completo - Ano Escolar</strong>).
-              </p>
-              <textarea
-                value={integrantesTexto}
-                onChange={(e) => setIntegrantesTexto(e.target.value)}
-                rows={5}
-                placeholder="Exemplo:&#10;Mariana Duarte Ramos - 8º Ano B&#10;Arthur Silveira de Souza - 9º Ano A&#10;Caio Felipe Mendes - 8º Ano B"
-                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:outline-none focus:border-cetecGreen resize-none font-mono"
-                required
-              />
+          <div className="space-y-4 animate-[fadeIn_0.2s_ease-in-out]">
+            <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="material-symbols-rounded text-base text-cetecBlue">person_add</span>
+                  Adicionar Integrante à Equipe
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMostrarImportacaoLote(!mostrarImportacaoLote)}
+                  className="text-[11px] font-bold text-cetecBlue hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <span className="material-symbols-rounded text-sm">swap_horiz</span>
+                  {mostrarImportacaoLote ? 'Formulário Normal' : 'Importar em Lote'}
+                </button>
+              </div>
+
+              {mostrarImportacaoLote ? (
+                <div className="space-y-2">
+                  <p className="text-[11px] text-gray-500 font-medium">
+                    Cole as linhas no formato: <strong>Nome - Matrícula - Ano Escolar</strong>
+                  </p>
+                  <textarea
+                    value={integrantesLoteTexto}
+                    onChange={(e) => setIntegrantesLoteTexto(e.target.value)}
+                    rows={4}
+                    placeholder="Exemplo:&#10;Mariana Duarte - 20250012 - 8º Ano B&#10;Arthur Silveira - 20250015 - 9º Ano A"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:outline-none focus:border-cetecGreen font-mono"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleImportarLote}
+                      className="px-3 py-1.5 rounded-xl bg-cetecBlue hover:bg-blue-700 text-white text-xs font-black cursor-pointer shadow-xs"
+                    >
+                      Inserir Linhas
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                    <div className="sm:col-span-5">
+                      <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                        Nome do Aluno *
+                      </label>
+                      <input
+                        type="text"
+                        value={novoIntegranteNome}
+                        onChange={(e) => setNovoIntegranteNome(e.target.value)}
+                        placeholder="Nome completo do aluno"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:border-cetecGreen"
+                      />
+                    </div>
+                    <div className="sm:col-span-4">
+                      <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                        Matrícula *
+                      </label>
+                      <input
+                        type="text"
+                        value={novoIntegranteMatricula}
+                        onChange={(e) => setNovoIntegranteMatricula(e.target.value)}
+                        placeholder="Ex: 20250123"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:border-cetecGreen"
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                        Ano / Turma
+                      </label>
+                      <input
+                        type="text"
+                        value={novoIntegranteAno}
+                        onChange={(e) => setNovoIntegranteAno(e.target.value)}
+                        placeholder="Ex: 8º Ano A"
+                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:border-cetecGreen"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                    <div className="sm:col-span-5">
+                      <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                        Gênero do Aluno *
+                      </label>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setNovoIntegranteGenero('M')}
+                          className={`py-1.5 px-2.5 rounded-xl border text-xs font-black flex items-center justify-center gap-1 transition cursor-pointer ${
+                            novoIntegranteGenero === 'M'
+                              ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span className="material-symbols-rounded text-sm">male</span>
+                          <span>Masc (M)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNovoIntegranteGenero('F')}
+                          className={`py-1.5 px-2.5 rounded-xl border text-xs font-black flex items-center justify-center gap-1 transition cursor-pointer ${
+                            novoIntegranteGenero === 'F'
+                              ? 'bg-rose-600 text-white border-rose-700 shadow-xs'
+                              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                          }`}
+                        >
+                          <span className="material-symbols-rounded text-sm">female</span>
+                          <span>Fem (F)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-7">
+                      <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                        Tamanho de Camisa *
+                      </label>
+                      <div className="grid grid-cols-5 sm:grid-cols-10 gap-1">
+                        {['10', '12', '14', '16', 'PP', 'P', 'M', 'G', 'GG', 'XGG'].map((tamanho) => (
+                          <button
+                            key={tamanho}
+                            type="button"
+                            onClick={() => setNovoIntegranteTamanho(tamanho)}
+                            className={`py-1.5 rounded-lg text-[11px] font-black border transition cursor-pointer ${
+                              novoIntegranteTamanho === tamanho
+                                ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                            }`}
+                          >
+                            {tamanho}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={handleAddIntegrante}
+                      disabled={!novoIntegranteNome.trim()}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-black transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+                    >
+                      <span className="material-symbols-rounded text-base">add</span>
+                      Adicionar Integrante
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Lista de Integrantes Cadastrados */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-gray-700 uppercase tracking-wider">
+                  Integrantes Cadastrados ({integrantesList.length})
+                </span>
+                {integrantesList.length === 0 && (
+                  <span className="text-[11px] text-amber-600 font-bold">
+                    Adicione pelo menos 1 integrante
+                  </span>
+                )}
+              </div>
+
+              {integrantesList.length === 0 ? (
+                <div className="p-4 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+                  <p className="text-xs font-bold text-gray-400">
+                    Nenhum aluno integrante adicionado. Preencha os campos acima para cadastrar.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                  {integrantesList.map((aluno) => (
+                    <div
+                      key={aluno.id}
+                      className="p-2.5 bg-white border border-gray-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-gray-300 transition"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
+                            aluno.genero === 'F' ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'
+                          }`}
+                        >
+                          <span className="material-symbols-rounded text-sm">
+                            {aluno.genero === 'F' ? 'female' : 'male'}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="block font-black text-xs text-gray-900 truncate">
+                            {aluno.nome}
+                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                            <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                              Mat: {aluno.matricula}
+                            </span>
+                            <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                              {aluno.anoEscolar}
+                            </span>
+                            <span
+                              className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                                aluno.genero === 'F'
+                                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                  : 'bg-blue-50 text-blue-700 border border-blue-200'
+                              }`}
+                            >
+                              {aluno.genero === 'F' ? 'Fem (F)' : 'Masc (M)'}
+                            </span>
+                            <span className="text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                              <span className="material-symbols-rounded text-[11px]">apparel</span>
+                              Camisa: {aluno.tamanhoCamisa || 'M'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveIntegrante(aluno.id)}
+                        className="p-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer shrink-0"
+                        title="Remover integrante"
+                      >
+                        <span className="material-symbols-rounded text-base">delete</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

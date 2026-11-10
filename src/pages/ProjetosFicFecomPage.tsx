@@ -457,20 +457,17 @@ export function ProjetosFicFecomPage({
               {/* Card Superior com Informações do Projeto */}
               <div className="bg-white rounded-2xl p-5 sm:p-6 border-2 border-blue-200 shadow-sm relative overflow-hidden">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                  {/* Nome e Status - Padronizado igual a Clubes de Competição e Clubes Regulares */}
                   <div className="flex flex-col gap-2 min-w-0 lg:col-span-4">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider ${
-                        selectedProjeto.modalidade === 'FIC'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-amber-500 text-white'
-                      }`}>
-                        {selectedProjeto.modalidade}
-                      </span>
+                    <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight leading-tight">
+                      {selectedProjeto.titulo}
+                    </h2>
 
+                    <div className="flex items-center gap-2 flex-wrap">
                       <select
                         value={selectedProjeto.status}
                         onChange={(e) => handleUpdateProjectStatus(e.target.value as any)}
-                        className={`text-xs font-black px-3 py-1 rounded-lg border cursor-pointer outline-none ${
+                        className={`text-xs font-black px-3 py-1.5 rounded-lg border cursor-pointer outline-none transition ${
                           selectedProjeto.status === 'em_andamento'
                             ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                             : selectedProjeto.status === 'concluido'
@@ -482,13 +479,22 @@ export function ProjetosFicFecomPage({
                         <option value="em_andamento">EM ANDAMENTO</option>
                         <option value="concluido">CONCLUÍDO</option>
                       </select>
-                    </div>
 
-                    <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight leading-tight mt-1">
-                      {selectedProjeto.titulo}
-                    </h2>
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase tracking-wider ${
+                        selectedProjeto.modalidade === 'FIC'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-amber-500 text-white'
+                      }`}>
+                        {selectedProjeto.modalidade}
+                      </span>
+
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-blue-50 text-cetecBlue border border-blue-200">
+                        Mostra Científica
+                      </span>
+                    </div>
                   </div>
 
+                  {/* Informações detalhadas */}
                   <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t lg:border-t-0 lg:border-l border-gray-100 pt-3 lg:pt-0 lg:pl-6">
                     <div>
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block mb-1">
@@ -532,150 +538,191 @@ export function ProjetosFicFecomPage({
                 </div>
               </div>
 
-              {/* Grid com Perguntas do Formulário e BNCC */}
-              <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
-                {/* Coluna Esquerda: Integrantes (xl:col-span-4) */}
-                <div className="xl:col-span-4 bg-white rounded-2xl p-5 border-2 border-gray-200 shadow-xs flex flex-col min-h-[380px]">
-                  <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-rounded text-cetecBlue text-xl">groups</span>
-                      <h3 className="font-black text-base text-gray-900">
-                        2. Integrantes da Equipe ({selectedProjeto.integrantesList?.length || 0})
-                      </h3>
-                    </div>
-                  </div>
+              {/* Grid Compacto com Distribuição Equilibrada e Alinhada */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-2 gap-4 items-stretch">
+                {/* Coluna Esquerda: Integrantes + BNCC (lg:col-span-5 lg:row-span-2 - Tamanhos de Referência) */}
+                <div className="lg:col-span-5 lg:row-span-2 grid grid-rows-subgrid gap-4">
+                  {/* Card 1: Integrantes da Equipe (REFERÊNCIA DE ALTURA LINHA 1) */}
+                  <div className="bg-white rounded-2xl p-4 sm:p-5 border-2 border-gray-200 shadow-xs flex flex-col justify-between h-full">
+                    <div>
+                      <div className="flex items-center justify-between pb-2 border-b border-gray-100 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-rounded text-cetecBlue text-xl">groups</span>
+                          <h3 className="font-black text-sm sm:text-base text-gray-900">
+                            2. Integrantes da Equipe ({selectedProjeto.integrantesList?.length || 0})
+                          </h3>
+                        </div>
+                      </div>
 
-                  <p className="text-[11px] text-gray-500 mb-3 font-medium">
-                    Alunos que irão representar o Clube de Programação no dia da mostra:
-                  </p>
-
-                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[500px]">
-                    {(!selectedProjeto.integrantesList || selectedProjeto.integrantesList.length === 0) ? (
-                      <p className="text-xs text-gray-400 text-center py-8">
-                        Nenhum integrante cadastrado neste projeto.
+                      <p className="text-[11px] text-gray-500 mb-2 font-medium">
+                        Alunos representantes no dia da mostra científica:
                       </p>
-                    ) : (
-                      selectedProjeto.integrantesList.map((aluno, index) => (
-                        <div
-                          key={aluno.id || `aluno-${index}`}
-                          className="p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between gap-2"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-full font-black text-xs flex items-center justify-center shrink-0 bg-blue-100 text-cetecBlue">
-                              <span className="material-symbols-rounded text-base">person</span>
-                            </div>
-                            <div className="min-w-0">
-                              <span className="block font-black text-xs text-gray-900 truncate">
-                                {aluno.nome}
-                              </span>
-                              <span className="block text-[10px] font-bold text-gray-400">
-                                {aluno.anoEscolar}
-                              </span>
+                    </div>
+
+                    <div className="overflow-y-auto space-y-1.5 pr-1 h-[190px] max-h-[190px]">
+                      {(!selectedProjeto.integrantesList || selectedProjeto.integrantesList.length === 0) ? (
+                        <p className="text-xs text-gray-400 text-center py-6">
+                          Nenhum integrante cadastrado neste projeto.
+                        </p>
+                      ) : (
+                        selectedProjeto.integrantesList.map((aluno, index) => (
+                          <div
+                            key={aluno.id || `aluno-${index}`}
+                            className="p-2.5 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between gap-2 shadow-2xs hover:border-gray-300 transition"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div
+                                className={`w-7 h-7 rounded-full font-black text-xs flex items-center justify-center shrink-0 ${
+                                  aluno.genero === 'F' ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'
+                                }`}
+                              >
+                                <span className="material-symbols-rounded text-sm">
+                                  {aluno.genero === 'F' ? 'female' : 'person'}
+                                </span>
+                              </div>
+                              <div className="min-w-0">
+                                <span className="block font-black text-xs text-gray-900 truncate">
+                                  {aluno.nome}
+                                </span>
+                                <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                  {aluno.matricula && (
+                                    <span className="text-[10px] font-bold text-gray-500 bg-white border border-gray-200 px-1.5 py-0.2 rounded">
+                                      Mat: {aluno.matricula}
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] font-bold text-gray-500 bg-white border border-gray-200 px-1.5 py-0.2 rounded">
+                                    {aluno.anoEscolar}
+                                  </span>
+                                  <span
+                                    className={`text-[10px] font-black px-1.5 py-0.2 rounded ${
+                                      aluno.genero === 'F'
+                                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                        : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    }`}
+                                  >
+                                    {aluno.genero === 'F' ? 'Fem' : 'Masc'}
+                                  </span>
+                                  <span className="text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                                    <span className="material-symbols-rounded text-[11px]">apparel</span>
+                                    {aluno.tamanhoCamisa || 'M'}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                           </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card 2: Dimensão Pedagógica & BNCC (REFERÊNCIA DE ALTURA LINHA 2) */}
+                  <div className="bg-white rounded-2xl p-4 sm:p-5 border-2 border-amber-300 shadow-xs flex flex-col justify-between h-full bg-gradient-to-br from-amber-50/30 via-white to-white">
+                    <div>
+                      <div className="flex items-center gap-2 pb-2 border-b border-amber-100 mb-2.5">
+                        <span className="material-symbols-rounded text-amber-700 text-lg">school</span>
+                        <div>
+                          <h3 className="font-black text-sm sm:text-base text-gray-900">
+                            Dimensão Pedagógica & Alinhamento à BNCC
+                          </h3>
+                          <p className="text-[10px] text-gray-500 font-medium">
+                            Conteúdos curriculares, competências e habilidades da computação
+                          </p>
                         </div>
-                      ))
-                    )}
-                  </div>
-                </div>
+                      </div>
 
-                {/* Coluna Direita: Perguntas do Formulário + BNCC (xl:col-span-8) */}
-                <div className="xl:col-span-8 space-y-4">
-                  {/* Card 1: Concepção, Temática e Propósito */}
-                  <div className="bg-white rounded-2xl p-5 border-2 border-gray-200 shadow-xs space-y-4">
-                    <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                      <span className="material-symbols-rounded text-cetecBlue text-xl">psychology</span>
-                      <h3 className="font-black text-base text-gray-900">
-                        Concepção do Projeto & O P de Propósito
-                      </h3>
-                    </div>
-
-                    <div>
-                      <span className="text-[11px] font-black uppercase text-gray-500 tracking-wider block mb-1">
-                        4. Justificativa dos Motivos & Escolha da Temática:
-                      </span>
-                      <p className="text-xs text-gray-700 leading-relaxed font-semibold bg-gray-50 p-3.5 rounded-xl border border-gray-200">
-                        {selectedProjeto.justificativaTematica || 'Não informado.'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <span className="text-[11px] font-black uppercase text-emerald-800 tracking-wider block mb-1">
-                        7. O P de Propósito (Relevância Social, Cultural ou Ambiental):
-                      </span>
-                      <p className="text-xs text-emerald-950 leading-relaxed font-semibold bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200/70">
-                        {selectedProjeto.propositoColetivo || 'Não informado.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Card 2: Processo de Construção e Pensar Brincando */}
-                  <div className="bg-white rounded-2xl p-5 border-2 border-gray-200 shadow-xs space-y-4">
-                    <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                      <span className="material-symbols-rounded text-cetecBlue text-xl">construction</span>
-                      <h3 className="font-black text-base text-gray-900">
-                        Processo de Construção & Pensar Brincando
-                      </h3>
-                    </div>
-
-                    <div>
-                      <span className="text-[11px] font-black uppercase text-gray-500 tracking-wider block mb-1">
-                        5. Processo de Construção e Participação da Equipe:
-                      </span>
-                      <p className="text-xs text-gray-700 leading-relaxed font-semibold bg-gray-50 p-3.5 rounded-xl border border-gray-200">
-                        {selectedProjeto.processoConstrucao || 'Não informado.'}
-                      </p>
-                    </div>
-
-                    <div>
-                      <span className="text-[11px] font-black uppercase text-cetecBlue tracking-wider block mb-1">
-                        6. O Pensar Brincando com Linguagem de Programação:
-                      </span>
-                      <p className="text-xs text-blue-950 leading-relaxed font-semibold bg-blue-50/60 p-3.5 rounded-xl border border-blue-200/70">
-                        {selectedProjeto.pensarBrincando || 'Não informado.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Card 3: Dimensão Pedagógica e BNCC */}
-                  <div className="bg-white rounded-2xl p-5 border-2 border-amber-300 shadow-xs space-y-4 bg-gradient-to-br from-amber-50/40 via-white to-white">
-                    <div className="flex items-center gap-2 pb-2 border-b border-amber-100">
-                      <span className="material-symbols-rounded text-amber-700 text-xl">school</span>
-                      <div>
-                        <h3 className="font-black text-base text-gray-900">
-                          Dimensão Pedagógica & Alinhamento à BNCC
-                        </h3>
-                        <p className="text-[11px] text-gray-500 font-medium">
-                          Conteúdos curriculares, competências e habilidades da BNCC e Computação
+                      <div className="mb-2.5">
+                        <span className="text-[10px] font-black uppercase text-amber-900 tracking-wider block mb-1">
+                          Conteúdos Escolares Presentes:
+                        </span>
+                        <p className="text-xs text-gray-800 leading-relaxed font-semibold bg-white p-2.5 rounded-xl border border-amber-200 shadow-2xs max-h-[70px] overflow-y-auto">
+                          {selectedProjeto.conteudosEscolares || 'Não informado.'}
                         </p>
                       </div>
                     </div>
 
-                    <div>
-                      <span className="text-[11px] font-black uppercase text-amber-900 tracking-wider block mb-1">
-                        Conteúdos Escolares Presentes no Projeto:
-                      </span>
-                      <p className="text-xs text-gray-800 leading-relaxed font-semibold bg-white p-3.5 rounded-xl border border-amber-200 shadow-2xs">
-                        {selectedProjeto.conteudosEscolares || 'Não informado.'}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <div>
-                        <span className="text-[11px] font-black uppercase text-blue-900 tracking-wider block mb-1">
-                          Competências da BNCC e Computação:
+                        <span className="text-[10px] font-black uppercase text-blue-900 tracking-wider block mb-1">
+                          Competências BNCC:
                         </span>
-                        <p className="text-xs text-gray-800 leading-relaxed font-semibold bg-white p-3.5 rounded-xl border border-blue-200 shadow-2xs">
+                        <p className="text-xs text-gray-800 leading-relaxed font-semibold bg-white p-2.5 rounded-xl border border-blue-200 shadow-2xs max-h-[95px] overflow-y-auto">
                           {selectedProjeto.competenciasBncc || 'Não informado.'}
                         </p>
                       </div>
 
                       <div>
-                        <span className="text-[11px] font-black uppercase text-emerald-900 tracking-wider block mb-1">
-                          Habilidades da BNCC e Computação:
+                        <span className="text-[10px] font-black uppercase text-emerald-900 tracking-wider block mb-1">
+                          Habilidades BNCC:
                         </span>
-                        <p className="text-xs text-gray-800 leading-relaxed font-semibold bg-white p-3.5 rounded-xl border border-emerald-200 shadow-2xs">
+                        <p className="text-xs text-gray-800 leading-relaxed font-semibold bg-white p-2.5 rounded-xl border border-emerald-200 shadow-2xs max-h-[95px] overflow-y-auto">
                           {selectedProjeto.habilidadesBncc || 'Não informado.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Coluna Direita: Concepção + Processo (lg:col-span-7 lg:row-span-2 - Alinhados às referências) */}
+                <div className="lg:col-span-7 lg:row-span-2 grid grid-rows-subgrid gap-4">
+                  {/* Card 1: Concepção, Temática e Propósito (ALINHADO COM INTEGRANTES) */}
+                  <div className="bg-white rounded-2xl p-4 sm:p-5 border-2 border-gray-200 shadow-xs flex flex-col justify-between h-full">
+                    <div>
+                      <div className="flex items-center gap-2 pb-2 border-b border-gray-100 mb-2">
+                        <span className="material-symbols-rounded text-cetecBlue text-lg">psychology</span>
+                        <h3 className="font-black text-sm sm:text-base text-gray-900">
+                          Concepção do Projeto & O P de Propósito
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col justify-between space-y-2.5">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                          4. Justificativa dos Motivos & Escolha da Temática:
+                        </span>
+                        <p className="text-xs text-gray-700 leading-relaxed font-semibold bg-gray-50 p-2.5 sm:p-3 rounded-xl border border-gray-200 max-h-[85px] overflow-y-auto">
+                          {selectedProjeto.justificativaTematica || 'Não informado.'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-emerald-800 tracking-wider block mb-1">
+                          7. O P de Propósito (Relevância Social, Cultural ou Ambiental):
+                        </span>
+                        <p className="text-xs text-emerald-950 leading-relaxed font-semibold bg-emerald-50/60 p-2.5 sm:p-3 rounded-xl border border-emerald-200/70 max-h-[85px] overflow-y-auto">
+                          {selectedProjeto.propositoColetivo || 'Não informado.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Processo de Construção e Pensar Brincando (ALINHADO COM DIMENSÃO PEDAGÓGICA) */}
+                  <div className="bg-white rounded-2xl p-4 sm:p-5 border-2 border-gray-200 shadow-xs flex flex-col justify-between h-full">
+                    <div>
+                      <div className="flex items-center gap-2 pb-2 border-b border-gray-100 mb-2">
+                        <span className="material-symbols-rounded text-cetecBlue text-lg">construction</span>
+                        <h3 className="font-black text-sm sm:text-base text-gray-900">
+                          Processo de Construção & Pensar Brincando
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col justify-between space-y-2.5">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-gray-500 tracking-wider block mb-1">
+                          5. Processo de Construção e Participação da Equipe:
+                        </span>
+                        <p className="text-xs text-gray-700 leading-relaxed font-semibold bg-gray-50 p-2.5 sm:p-3 rounded-xl border border-gray-200 max-h-[90px] overflow-y-auto">
+                          {selectedProjeto.processoConstrucao || 'Não informado.'}
+                        </p>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-cetecBlue tracking-wider block mb-1">
+                          6. O Pensar Brincando com Linguagem de Programação:
+                        </span>
+                        <p className="text-xs text-blue-950 leading-relaxed font-semibold bg-blue-50/60 p-2.5 sm:p-3 rounded-xl border border-blue-200/70 max-h-[90px] overflow-y-auto">
+                          {selectedProjeto.pensarBrincando || 'Não informado.'}
                         </p>
                       </div>
                     </div>

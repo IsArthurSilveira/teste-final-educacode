@@ -478,7 +478,15 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
       case 'cadastrar_aluno': {
         const alunoId = payload.id_aluno || payload.id;
         const idClube = payload.id_clube || payload.idClube;
-        const alunoData = {
+        const tamanhoCamisa = String(payload.tamanho_camisa || payload.tamanhoCamisa || 'M').trim().toUpperCase();
+        const alunoDataFull: Record<string, any> = {
+          id_clube: idClube,
+          matricula: String(payload.matricula || 'S/ MATRÍCULA').trim().toUpperCase(),
+          nome: String(payload.nome || '').trim().toUpperCase(),
+          sexo: String(payload.sexo || 'M').toUpperCase().startsWith('F') ? 'F' : 'M',
+          tamanho_camisa: tamanhoCamisa,
+        };
+        const alunoDataLegacy: Record<string, any> = {
           id_clube: idClube,
           matricula: String(payload.matricula || 'S/ MATRÍCULA').trim().toUpperCase(),
           nome: String(payload.nome || '').trim().toUpperCase(),
@@ -486,20 +494,38 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
         };
 
         if (alunoId) {
-          const { error } = await supabase
+          let { error } = await supabase
             .from('alunos')
-            .update(alunoData)
+            .update(alunoDataFull)
             .eq('id', alunoId);
+
+          if (error && (error.message?.includes('tamanho_camisa') || error.code === '42703')) {
+            const fallback = await supabase
+              .from('alunos')
+              .update(alunoDataLegacy)
+              .eq('id', alunoId);
+            error = fallback.error;
+          }
 
           if (error) throw error;
           return { sucesso: true, id: alunoId, mensagem: 'Aluno atualizado com sucesso.' } as unknown as TResponse;
         }
 
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('alunos')
-          .insert(alunoData)
+          .insert(alunoDataFull)
           .select('id')
           .single();
+
+        if (error && (error.message?.includes('tamanho_camisa') || error.code === '42703')) {
+          const fallback = await supabase
+            .from('alunos')
+            .insert(alunoDataLegacy)
+            .select('id')
+            .single();
+          data = fallback.data;
+          error = fallback.error;
+        }
 
         if (error) throw error;
         return { sucesso: true, id: data?.id, mensagem: 'Aluno cadastrado com sucesso.' } as unknown as TResponse;

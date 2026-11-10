@@ -20,6 +20,10 @@ export interface Aluno {
   idClube: string;
   matricula: string;
   nome: string;
+  sexo?: 'M' | 'F' | string;
+  genero?: 'M' | 'F' | string;
+  tamanhoCamisa?: string;
+  tamanho_camisa?: string;
   dataRegistro: string;
 }
 
@@ -118,11 +122,22 @@ export function normalizeClube(raw: unknown): Clube {
 }
 
 export function normalizeAluno(raw: unknown): Aluno {
+  const rawSexo = toUpperText(pickField(raw, ['Sexo', 'sexo', 'GENERO', 'genero', 'Genero', 'SEXO'], 'M'), 'M');
+  const sexo = rawSexo.startsWith('F') ? 'F' : 'M';
+  const rawCamisa = toUpperText(
+    pickField(raw, ['Tamanho_Camisa', 'tamanho_camisa', 'tamanhoCamisa', 'Tamanho Camisa', 'CAMISA', 'camisa', 'TAMANHO', 'tamanho'], 'M'),
+    'M'
+  );
+
   return {
     id: normalizeId(pickField(raw, ['ID_Aluno', 'ID Aluno', 'ID_ALUNO', 'IDALUNO', 'id_aluno', 'id aluno', 'idaluno', 'id', 'ID'], '')),
     idClube: normalizeId(pickField(raw, ['ID_Clube', 'ID Clube', 'ID_CLUBE', 'IDCLUBE', 'ID_clube', 'CLUBE_ID', 'clube_id', 'id_clube', 'id clube', 'idclube'], '')),
     matricula: toUpperText(pickField(raw, ['Matricula', 'Matrícula', 'MATRICULA', 'matricula', 'Nº Matricula', 'No Matricula', 'Numero Matricula'], ''), ''),
     nome: toUpperText(pickField(raw, ['Nome', 'nome', 'ALUNO', 'Aluno', 'NOME_ALUNO', 'NOME ALUNO', 'ALUNO_NOME', 'NOME DO ALUNO'], '-'), '-'),
+    sexo,
+    genero: sexo,
+    tamanhoCamisa: rawCamisa || 'M',
+    tamanho_camisa: rawCamisa || 'M',
     dataRegistro: toUpperText(pickField(raw, ['Data_Registro', 'Data Registro', 'DATA_REGISTRO', 'data_registro', 'Data de Registro'], ''), ''),
   };
 }

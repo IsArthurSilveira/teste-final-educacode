@@ -1,8 +1,10 @@
 export interface IntegranteProjeto {
   id: string;
   nome: string;
+  matricula?: string;
   anoEscolar: string;
   genero?: 'M' | 'F';
+  tamanhoCamisa?: string;
 }
 
 export type ModalidadeProjeto = 'FIC' | 'FECOM';
@@ -189,7 +191,17 @@ export function getStoredProjetosFicFecom(): ProjetoFicFecom[] {
       return DEFAULT_PROJETOS_FIC_FECOM;
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.map((p) => ({
+        ...p,
+        integrantesList: (p.integrantesList || []).map((m: any) => ({
+          ...m,
+          matricula: m.matricula || 'S/ MATRÍCULA',
+          genero: m.genero || 'M',
+          tamanhoCamisa: m.tamanhoCamisa || 'M',
+        })),
+      }));
+    }
     return DEFAULT_PROJETOS_FIC_FECOM;
   } catch (err) {
     console.error('Erro ao ler projetos FIC/FECOM do localStorage:', err);
