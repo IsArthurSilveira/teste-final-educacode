@@ -12,13 +12,14 @@ function isAnyAdminAccess(value: unknown): boolean {
 
 async function registrarAuditoria(acao: string, tabela: string, idRegistro: unknown, detalhes: Record<string, unknown> = {}): Promise<void> {
   try {
-    const token = getSessionToken();
-    const { data: usuario } = token && token !== 'superadmin-master-token'
-      ? await supabase.from('usuarios').select('id, nome').eq('id', token).maybeSingle()
+    const { data: authData } = await supabase.auth.getUser();
+    const email = authData.user?.email?.toLowerCase() || '';
+    const { data: usuario } = email
+      ? await supabase.from('usuarios').select('id, nome').ilike('email', email).maybeSingle()
       : { data: null };
     await supabase.from('auditoria').insert({
       id_usuario: usuario?.id || null,
-      usuario_nome: usuario?.nome || 'Administrador Supremo',
+      usuario_nome: usuario?.nome || email || 'Usuário autenticado',
       acao,
       tabela,
       id_registro: idRegistro == null ? '' : String(idRegistro),
@@ -117,24 +118,14 @@ export function clearSessionToken(): void {
 
 export async function validateSession(): Promise<SessionValidationResponse | null> {
   try {
-    const token = getSessionToken();
-    if (!token) return null;
-
-    if (token === 'superadmin-master-token') {
-      return {
-        sucesso: true,
-        nome: 'Administrador Supremo',
-        acesso: 'superadmin',
-        tipo_usuario: 'global',
-        utec: '',
-        ver_todas_utecs: true,
-      };
-    }
+    const { data: authData } = await supabase.auth.getUser();
+    const email = authData.user?.email?.toLowerCase();
+    if (!email) return null;
 
     const { data: user, error } = await supabase
       .from('usuarios')
-      .select('id, nome, email, acesso, tipo_usuario, utec, ver_todas_utecs')
-      .eq('id', token)
+      .select('id, nome, email, acesso, tipo_usuario, id_utec, ver_todas_utecs')
+      .ilike('email', email)
       .maybeSingle();
 
     if (error || !user) {
@@ -146,7 +137,7 @@ export async function validateSession(): Promise<SessionValidationResponse | nul
       nome: user.nome,
       acesso: user.acesso,
       tipo_usuario: user.tipo_usuario,
-      utec: user.utec,
+      utec: user.id_utec,
       ver_todas_utecs: user.ver_todas_utecs,
     };
   } catch {
@@ -155,6 +146,7 @@ export async function validateSession(): Promise<SessionValidationResponse | nul
 }
 
 export async function logoutSession(): Promise<void> {
+  await supabase.auth.signOut();
   clearSessionToken();
 }
 
@@ -413,13 +405,23 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
           return { sucesso: false, erro: 'Preencha o e-mail e a senha.' } as unknown as TResponse;
         }
 
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password: senha,
+        });
+
+        if (authError || !authData.user) {
+          return { sucesso: false, erro: 'Credenciais incorretas.' } as unknown as TResponse;
+        }
+
         const { data: user, error } = await supabase
           .from('usuarios')
-          .select('*')
+          .select('id, nome, email, acesso, tipo_usuario, id_utec, ver_todas_utecs')
           .ilike('email', email)
           .maybeSingle();
 
         if (error) {
+          await supabase.auth.signOut();
           handleSupabaseError(error);
           return {
             sucesso: false,
@@ -427,11 +429,12 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
           } as unknown as TResponse;
         }
 
-        if (!user || user.senha !== senha) {
+        if (!user) {
+          await supabase.auth.signOut();
           return { sucesso: false, erro: 'Credenciais incorretas.' } as unknown as TResponse;
         }
 
-        setSessionToken(user.id);
+        setSessionToken('authenticated');
 
         return {
           sucesso: true,
@@ -439,7 +442,7 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
           nome: user.nome,
           acesso: user.acesso,
           tipo_usuario: user.tipo_usuario,
-          utec: user.utec,
+          utec: user.id_utec,
           ver_todas_utecs: user.ver_todas_utecs,
         } as unknown as TResponse;
       }
@@ -450,15 +453,27 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
           return { sucesso: false, erro: 'Informe a senha do Administrador Supremo.' } as unknown as TResponse;
         }
 
-        const { data: admins, error } = await supabase
+        const { data: authData } = await supabase.auth.getUser();
+        const email = authData.user?.email?.toLowerCase();
+        if (!email) {
+          return { sucesso: false, erro: 'Sessão autenticada não encontrada.' } as unknown as TResponse;
+        }
+
+        const { data: admin, error } = await supabase
           .from('usuarios')
-          .select('senha')
+          .select('email, acesso')
+          .ilike('email', email)
           .eq('acesso', 'superadmin')
-          .limit(20);
+          .maybeSingle();
 
         if (error) throw error;
+        if (!admin) return { sucesso: false, erro: 'Acesso restrito ao Administrador Supremo.' } as unknown as TResponse;
 
-        const valido = (admins || []).some((admin) => admin.senha === senha);
+        const { error: reauthenticationError } = await supabase.auth.signInWithPassword({
+          email,
+          password: senha,
+        });
+        const valido = !reauthenticationError;
         return (valido
           ? { sucesso: true }
           : { sucesso: false, erro: 'Senha do Administrador Supremo incorreta.' }) as unknown as TResponse;
@@ -675,6 +690,13 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
         const senha = String(payload.senha || '').trim();
 
         if (userId) {
+          if (senha) {
+            return {
+              sucesso: false,
+              erro: 'A senha deve ser alterada em Authentication > Users no Supabase.',
+            } as unknown as TResponse;
+          }
+
           const updateData: Record<string, unknown> = {
             nome,
             email,
@@ -683,10 +705,6 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
             id_utec: isAnyAdminAccess(acesso) ? null : idUtec,
             ver_todas_utecs: verTodasUtecs,
           };
-          if (senha) {
-            updateData.senha = senha;
-          }
-
           const { error } = await supabase
             .from('usuarios')
             .update(updateData)
@@ -698,32 +716,16 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
         }
 
         if (!senha) {
-          return { sucesso: false, erro: 'A senha é obrigatória para novos usuários.' } as unknown as TResponse;
+          return {
+            sucesso: false,
+            erro: 'Crie a conta em Authentication > Users no Supabase antes de cadastrar o perfil.',
+          } as unknown as TResponse;
         }
 
-        const { data, error } = await supabase
-          .from('usuarios')
-          .insert({
-            nome,
-            email,
-            senha,
-            acesso,
-            tipo_usuario: tipoUsuario,
-            id_utec: isAnyAdminAccess(acesso) ? null : idUtec,
-            ver_todas_utecs: verTodasUtecs,
-          })
-          .select('id')
-          .single();
-
-        if (error) {
-          if (error.code === '23505') {
-            return { sucesso: false, erro: 'Já existe um usuário cadastrado com este e-mail.' } as unknown as TResponse;
-          }
-          throw error;
-        }
-
-        await registrarAuditoria('cadastrar', 'usuarios', data?.id, { nome, email, acesso });
-        return { sucesso: true, id: data?.id, mensagem: 'Usuário cadastrado com sucesso.' } as unknown as TResponse;
+        return {
+          sucesso: false,
+          erro: 'A criação de contas deve ser feita no Supabase Auth; depois cadastre o perfil sem expor a senha.',
+        } as unknown as TResponse;
       }
 
       case 'excluir_usuario':
@@ -878,30 +880,21 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
  */
 async function verifyAdminOrUserPassword(inputPassword: string): Promise<boolean> {
   if (!inputPassword) return false;
-  const currentToken = getSessionToken();
 
   try {
-    if (currentToken) {
-      const { data: currentUser } = await supabase
-        .from('usuarios')
-        .select('senha, acesso')
-        .eq('id', currentToken)
-        .maybeSingle();
+    const { data: authData } = await supabase.auth.getUser();
+    const email = authData.user?.email;
+    if (!email) return false;
 
-      if (currentUser?.senha && currentUser.senha === inputPassword) {
-        return true;
-      }
-    }
-
-    // Se a senha bater com qualquer usuário administrador
-    const { data: admins } = await supabase
+    const { data: currentUser } = await supabase
       .from('usuarios')
-      .select('senha')
-      .eq('acesso', 'administrador')
-      .eq('senha', inputPassword)
-      .limit(1);
+      .select('acesso')
+      .ilike('email', email)
+      .maybeSingle();
 
-    return Boolean(admins && admins.length > 0);
+    if (!currentUser || !isAnyAdminAccess(currentUser.acesso)) return false;
+    const { error } = await supabase.auth.signInWithPassword({ email, password: inputPassword });
+    return !error;
   } catch {
     return false;
   }

@@ -18,7 +18,6 @@ import {
 const EMPTY_FORM = {
   nome: '',
   email: '',
-  senha: '',
   acesso: 'editor',
   utec: '',
 };
@@ -115,7 +114,6 @@ export function AdminUsersPage({
     setForm({
       nome: user.nome || '',
       email: user.email || '',
-      senha: '',
       acesso: normalizeAccessLevel(user.acesso || user.tipoUsuario || 'editor'),
       utec: String(user.id_utec || user.utec || ''),
     });
@@ -156,7 +154,6 @@ export function AdminUsersPage({
         acao: 'salvar_usuario',
         nome: String(form.nome || '').trim(),
         email: String(form.email || '').trim(),
-        senha: String(form.senha || '').trim(),
         acesso: form.acesso,
         tipo_usuario: isGlobalUser ? 'global' : 'utec',
         ver_todas_utecs: isGlobalUser,
@@ -437,14 +434,9 @@ export function AdminUsersPage({
             type="email"
             required
           />
-          <FormTextInput
-            label="Senha"
-            value={form.senha}
-            onChange={(event) => updateField('senha', event.target.value)}
-            placeholder={editingUser ? 'Deixe em branco para manter a atual' : 'Senha de acesso'}
-            type="password"
-            required={!editingUser}
-          />
+          <p className="md:col-span-2 text-sm font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+            As contas e senhas são gerenciadas em Authentication &gt; Users no Supabase. Esta tela edita somente o perfil e as permissões.
+          </p>
           <FormSelect
             label="Acesso"
             value={form.acesso}
