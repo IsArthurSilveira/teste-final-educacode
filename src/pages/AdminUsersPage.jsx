@@ -6,7 +6,14 @@ import { BaseModal } from '../components/ui/BaseModal';
 import { FormSelect } from '../components/ui/FormSelect';
 import { FormTextInput } from '../components/ui/FormTextInput';
 import { ModalActionRow } from '../components/ui/ModalActionRow';
-import { accessLabel, normalizeAccessLevel } from '../utils/permissions';
+import {
+  accessLabel,
+  canManageTargetUser,
+  canManageUsers as canManageUsersFn,
+  getAllowedAssignableRoles,
+  isAnyAdmin,
+  normalizeAccessLevel,
+} from '../utils/permissions';
 
 const EMPTY_FORM = {
   nome: '',
@@ -28,6 +35,7 @@ export function AdminUsersPage({
   onOpenGaleria,
   onOpenClubesCompeticao,
   onOpenProjetosFicFecom,
+  onOpenDatabaseControl,
   onOpenNewClub,
   onOpenAdminDeleteClubs,
   onOpenAdminUsers,
@@ -50,15 +58,15 @@ export function AdminUsersPage({
   const [deleteError, setDeleteError] = useState('');
   const [deleteSaving, setDeleteSaving] = useState(false);
 
-  const isAdmin = String(userRole || '').toLowerCase() === 'administrador';
-  const canManageUsers = isAdmin && allowAdminTools;
+  const canManage = canManageUsersFn(userRole);
+  const allowedAssignableRoles = useMemo(() => getAllowedAssignableRoles(userRole), [userRole]);
   const options = useMemo(() => (Array.isArray(utecOptions) ? utecOptions : []), [utecOptions]);
   const normalizedSearch = search.trim().toLowerCase();
 
   const filteredUsers = useMemo(() => {
     return usuarios.filter((user) => {
       const access = normalizeAccessLevel(user.acesso || user.tipoUsuario || user.tipo_usuario);
-      const userIsGlobal = Boolean(user.verTodasUtecs) || String(user.tipoUsuario || '').toLowerCase() === 'global';
+      const userIsGlobal = Boolean(user.verTodasUtecs) || String(user.tipoUsuario || '').toLowerCase() === 'global' || isAnyAdmin(access);
       if (!matchQuickFilter(quickFilter, access, userIsGlobal)) return false;
 
       if (!normalizedSearch) return true;
@@ -69,7 +77,7 @@ export function AdminUsersPage({
     });
   }, [usuarios, quickFilter, normalizedSearch]);
 
-  if (!allowUsersTools) {
+  if (!allowUsersTools && !canManage) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -77,10 +85,11 @@ export function AdminUsersPage({
     setError('');
     setSuccess('');
     setShowAddModal(true);
+    const initialRole = allowedAssignableRoles[0]?.value || 'editor';
     setForm({
       ...EMPTY_FORM,
-      acesso: 'editor',
-      utec: options[0]?.value || '',
+      acesso: initialRole,
+      utec: initialRole === 'editor' ? (options[0]?.value || '') : '',
     });
   }
 
@@ -89,14 +98,15 @@ export function AdminUsersPage({
       const next = { ...current, [field]: value };
 
       if (field === 'acesso') {
-        if (String(value).toLowerCase() === 'administrador') {
+        const isGlobal = isAnyAdmin(value);
+        if (isGlobal) {
           next.utec = '';
         } else if (!next.utec) {
           next.utec = options[0]?.value || '';
         }
       }
 
-      if (field === 'utec' && String(current.acesso).toLowerCase() === 'administrador') {
+      if (field === 'utec' && isAnyAdmin(current.acesso)) {
         next.utec = '';
       }
 
@@ -113,7 +123,7 @@ export function AdminUsersPage({
     setSuccess('');
 
     try {
-      const isGlobalUser = String(form.acesso).toLowerCase() === 'administrador';
+      const isGlobalUser = isAnyAdmin(form.acesso);
       const payload = {
         acao: 'salvar_usuario',
         nome: String(form.nome || '').trim(),
@@ -192,6 +202,7 @@ export function AdminUsersPage({
         onOpenGaleria={onOpenGaleria}
         onOpenClubesCompeticao={onOpenClubesCompeticao}
         onOpenProjetosFicFecom={onOpenProjetosFicFecom}
+        onOpenDatabaseControl={onOpenDatabaseControl}
         onOpenNewClub={onOpenNewClub}
         onOpenAdminDeleteClubs={onOpenAdminDeleteClubs}
         onOpenAdminUsers={onOpenAdminUsers}
@@ -215,7 +226,7 @@ export function AdminUsersPage({
               </div>
             </div>
 
-            {canManageUsers && (
+            {canManage && (
               <button
                 type="button"
                 onClick={openAddModal}
@@ -243,7 +254,8 @@ export function AdminUsersPage({
 
             <div className="flex flex-wrap gap-2 w-full justify-start items-center">
               <FilterChip label="Todos" icon="dashboard" active={quickFilter === 'all'} onClick={() => setQuickFilter('all')} />
-              <FilterChip label="Administradores" icon="shield_person" active={quickFilter === 'administrador'} onClick={() => setQuickFilter('administrador')} />
+              <FilterChip label="Admin Supremo" icon="crown" active={quickFilter === 'superadmin'} onClick={() => setQuickFilter('superadmin')} />
+              <FilterChip label="Admin Padrão" icon="shield_person" active={quickFilter === 'administrador'} onClick={() => setQuickFilter('administrador')} />
               <FilterChip label="Editores" icon="edit" active={quickFilter === 'editor'} onClick={() => setQuickFilter('editor')} />
               <FilterChip label="Leitores" icon="visibility" active={quickFilter === 'leitor'} onClick={() => setQuickFilter('leitor')} />
               <FilterChip label="UTEC" icon="apartment" active={quickFilter === 'utec'} onClick={() => setQuickFilter('utec')} />
@@ -264,7 +276,8 @@ export function AdminUsersPage({
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 ui-card-grid ui-card-grid--three">
                 {filteredUsers.map((user, index) => {
                   const access = normalizeAccessLevel(user.acesso || user.tipoUsuario || user.tipo_usuario);
-                  const isGlobalUser = Boolean(user.verTodasUtecs) || String(user.tipoUsuario || '').toLowerCase() === 'global' || access === 'administrador';
+                  const isGlobalUser = Boolean(user.verTodasUtecs) || String(user.tipoUsuario || '').toLowerCase() === 'global' || isAnyAdmin(access);
+                  const canDeleteThisUser = canManageTargetUser(userRole, access, userName, user.nome || user.email);
                   return (
                     <article key={user.id || user.email || `user-${index}`} className="bg-white rounded-2xl p-6 border-2 border-gray-100 shadow-sm hover:shadow-md transition-all flex flex-col gap-4 min-h-[240px]">
                       <div>
@@ -282,7 +295,7 @@ export function AdminUsersPage({
 
                       <div className="flex items-end justify-between mt-auto pt-4 border-t border-gray-50">
                         <span className={`status-badge ${accessClass(access)} font-black text-xs px-3 py-1.5 rounded-lg inline-flex items-center border w-fit`}>{accessLabel(access).toUpperCase()}</span>
-                        {canManageUsers && (
+                        {canDeleteThisUser && (
                           <button
                             type="button"
                             onClick={() => requestDelete(user)}
@@ -341,11 +354,7 @@ export function AdminUsersPage({
             label="Acesso"
             value={form.acesso}
             onChange={(event) => updateField('acesso', event.target.value)}
-            options={[
-              { value: 'administrador', label: 'Administrador' },
-              { value: 'editor', label: 'Editor' },
-              { value: 'leitor', label: 'Leitor' },
-            ]}
+            options={allowedAssignableRoles}
             getOptionKey={(option) => option.value}
             getOptionLabel={(option) => option.label}
             className="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-cetecGreen font-bold text-sm text-gray-700 shadow-sm appearance-none bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(248,250,252,1))] pr-11"
@@ -355,23 +364,23 @@ export function AdminUsersPage({
           />
           <FormSelect
             label="UTEC"
-            value={String(form.acesso).toLowerCase() === 'administrador' ? '' : form.utec}
+            value={isAnyAdmin(form.acesso) ? '' : form.utec}
             onChange={(event) => updateField('utec', event.target.value)}
-            options={String(form.acesso).toLowerCase() === 'administrador' ? [] : options}
+            options={isAnyAdmin(form.acesso) ? [] : options}
             getOptionKey={(option) => option.value}
             getOptionLabel={(option) => option.label}
             className="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-cetecGreen font-bold text-sm text-gray-700 shadow-sm appearance-none bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(248,250,252,1))] pr-11"
             selectClassName="w-full px-4 py-3.5 bg-white border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-cetecGreen font-bold text-sm text-gray-700 shadow-sm appearance-none bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(248,250,252,1))] pr-11"
             optionClassName="bg-white text-gray-800 font-semibold"
-            disabled={String(form.acesso).toLowerCase() === 'administrador'}
-            required={String(form.acesso).toLowerCase() !== 'administrador'}
+            disabled={isAnyAdmin(form.acesso)}
+            required={!isAnyAdmin(form.acesso)}
           />
         </div>
 
         <p className="text-xs font-bold text-gray-500">
-          {String(form.acesso).toLowerCase() === 'administrador'
-            ? 'Usuários administradores não precisam de UTEC vinculada.'
-            : 'Usuários comuns devem ficar vinculados a uma UTEC.'}
+          {isAnyAdmin(form.acesso)
+            ? 'Usuários administradores têm acesso global e não precisam de UTEC vinculada.'
+            : 'Usuários editores devem ficar vinculados à sua UTEC de atuação.'}
         </p>
 
         <ModalActionRow
@@ -415,12 +424,17 @@ function matchQuickFilter(filter, access, isGlobalUser) {
   if (filter === 'all') return true;
   if (filter === 'global') return isGlobalUser;
   if (filter === 'utec') return !isGlobalUser;
+  if (filter === 'superadmin') return access === 'superadmin';
+  if (filter === 'administrador') return access === 'administrador';
+  if (filter === 'editor') return access === 'editor';
+  if (filter === 'leitor') return access === 'leitor';
   return access === filter;
 }
 
 function accessClass(access) {
   const normalized = String(access || '').toLowerCase();
-  if (normalized.includes('admin')) return 'bg-red-100 text-red-700 border-red-200';
-  if (normalized.includes('edit')) return 'bg-blue-100 text-blue-700 border-blue-200';
-  return 'bg-cyan-100 text-cyan-700 border-cyan-200';
+  if (normalized === 'superadmin') return 'bg-amber-100 text-amber-900 border-amber-300 font-black shadow-xs';
+  if (normalized === 'administrador' || normalized.includes('admin')) return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+  if (normalized.includes('edit')) return 'bg-blue-100 text-blue-800 border-blue-200';
+  return 'bg-cyan-100 text-cyan-800 border-cyan-200';
 }

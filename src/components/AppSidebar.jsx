@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import iconeEducacode from '../assets/icone.png';
 import logoEducacode from '../assets/logo-educacode.png';
 import { BaseModal } from './ui/BaseModal';
+import { canAccessDatabase, canManageUsers } from '../utils/permissions';
 
 export function AppSidebar({
   activeView,
   userName,
+  userRole = localStorage.getItem('usuarioPerfil') || 'editor',
   allowUsersTools = false,
   onLogout,
   onOpenDashboard,
@@ -17,9 +20,22 @@ export function AppSidebar({
   onOpenDatabaseControl,
   onOpenAdminUsers,
 }) {
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
   const [showDevsModal, setShowDevsModal] = useState(false);
+
+  const hasUserManagementAccess = canManageUsers(userRole) || allowUsersTools;
+  const hasDatabaseAccess = canAccessDatabase(userRole);
+
+  const handleOpenDashboard = onOpenDashboard || (() => navigate('/dashboard'));
+  const handleOpenClubs = onOpenClubs || (() => navigate('/clubes'));
+  const handleOpenClubesCompeticao = onOpenClubesCompeticao || (() => navigate('/clubes-competicao'));
+  const handleOpenProjetosFicFecom = onOpenProjetosFicFecom || (() => navigate('/projetos-fic-fecom'));
+  const handleOpenRoteiros = onOpenRoteiros || (() => navigate('/roteiros'));
+  const handleOpenGaleria = onOpenGaleria || (() => navigate('/galeria'));
+  const handleOpenAdminUsers = onOpenAdminUsers || (() => navigate('/admin/usuarios'));
+  const handleOpenDatabaseControl = onOpenDatabaseControl || (() => navigate('/admin/banco-de-dados'));
 
   useEffect(() => {
     function handleResize() {
@@ -66,7 +82,7 @@ export function AppSidebar({
           <nav className="app-mobile-tabbar__nav">
             <button
               type="button"
-              onClick={onOpenDashboard}
+              onClick={handleOpenDashboard}
               className={`app-mobile-tab-btn ${activeView === 'dashboard' ? 'is-active' : ''}`}
               title="Visão Geral"
             >
@@ -76,7 +92,7 @@ export function AppSidebar({
 
             <button
               type="button"
-              onClick={onOpenClubs}
+              onClick={handleOpenClubs}
               className={`app-mobile-tab-btn ${activeView === 'clubs' ? 'is-active' : ''}`}
               title="Painel de Clubes"
             >
@@ -86,7 +102,7 @@ export function AppSidebar({
 
             <button
               type="button"
-              onClick={onOpenClubesCompeticao}
+              onClick={handleOpenClubesCompeticao}
               className={`app-mobile-tab-btn ${activeView === 'clubes-competicao' ? 'is-active text-yellow-300' : ''}`}
               title="Clubes Competição"
             >
@@ -96,7 +112,7 @@ export function AppSidebar({
 
             <button
               type="button"
-              onClick={onOpenProjetosFicFecom}
+              onClick={handleOpenProjetosFicFecom}
               className={`app-mobile-tab-btn ${activeView === 'projetos-fic-fecom' ? 'is-active text-teal-300' : ''}`}
               title="Projetos FIC & FECOM"
             >
@@ -106,7 +122,7 @@ export function AppSidebar({
 
             <button
               type="button"
-              onClick={onOpenRoteiros}
+              onClick={handleOpenRoteiros}
               className={`app-mobile-tab-btn ${activeView === 'roteiros' ? 'is-active' : ''}`}
               title="Roteiros Didáticos"
             >
@@ -116,7 +132,7 @@ export function AppSidebar({
 
             <button
               type="button"
-              onClick={onOpenGaleria}
+              onClick={handleOpenGaleria}
               className={`app-mobile-tab-btn ${activeView === 'galeria' ? 'is-active' : ''}`}
               title="Galeria de Fotos"
             >
@@ -124,29 +140,29 @@ export function AppSidebar({
               <span>Galeria</span>
             </button>
 
-            {allowUsersTools && (
-              <>
-                <button
-                  type="button"
-                  onClick={onOpenAdminUsers}
-                  className={`app-mobile-tab-btn ${activeView === 'admin-users' ? 'is-active' : ''}`}
-                  title="Usuários"
-                >
-                  <span className="material-symbols-rounded text-[18px]">person_add</span>
-                  <span>Usuários</span>
-                </button>
-              </>
+            {hasUserManagementAccess && (
+              <button
+                type="button"
+                onClick={handleOpenAdminUsers}
+                className={`app-mobile-tab-btn ${activeView === 'admin-users' ? 'is-active' : ''}`}
+                title="Usuários"
+              >
+                <span className="material-symbols-rounded text-[18px]">person_add</span>
+                <span>Usuários</span>
+              </button>
             )}
 
-            <button
-              type="button"
-              onClick={onOpenDatabaseControl}
-              className={`app-mobile-tab-btn ${activeView === 'database-control' ? 'is-active text-amber-300' : ''}`}
-              title="Banco de Dados"
-            >
-              <span className="material-symbols-rounded text-[18px]">database</span>
-              <span>Banco</span>
-            </button>
+            {hasDatabaseAccess && (
+              <button
+                type="button"
+                onClick={handleOpenDatabaseControl}
+                className={`app-mobile-tab-btn ${activeView === 'database-control' ? 'is-active text-amber-300' : ''}`}
+                title="Banco de Dados"
+              >
+                <span className="material-symbols-rounded text-[18px]">database</span>
+                <span>Banco</span>
+              </button>
+            )}
           </nav>
         </aside>
 
@@ -264,7 +280,7 @@ export function AppSidebar({
         <nav className={`${expandedDesktop ? 'p-4' : 'p-3'} flex-1 space-y-2 mt-0 transition-all duration-300`}>
           <button
             type="button"
-            onClick={onOpenDashboard}
+            onClick={handleOpenDashboard}
             className={`nav-btn ${expandedDesktop ? 'w-full justify-start px-5 py-3 rounded-2xl' : 'w-12 h-12 mx-auto justify-center rounded-xl'} font-bold transition flex items-center border-b-4 text-sm ${
               activeView === 'dashboard'
                 ? 'bg-white/20 border-white/30'
@@ -278,7 +294,7 @@ export function AppSidebar({
 
           <button
             type="button"
-            onClick={onOpenClubs}
+            onClick={handleOpenClubs}
             className={`nav-btn ${expandedDesktop ? 'w-full justify-start px-5 py-3 rounded-2xl' : 'w-12 h-12 mx-auto justify-center rounded-xl'} font-bold transition flex items-center border-b-4 text-sm ${
               activeView === 'clubs'
                 ? 'bg-white/20 border-white/30'
@@ -292,7 +308,7 @@ export function AppSidebar({
 
           <button
             type="button"
-            onClick={onOpenClubesCompeticao}
+            onClick={handleOpenClubesCompeticao}
             className={`nav-btn ${expandedDesktop ? 'w-full justify-start px-5 py-3 rounded-2xl' : 'w-12 h-12 mx-auto justify-center rounded-xl'} font-bold transition flex items-center border-b-4 text-sm ${
               activeView === 'clubes-competicao'
                 ? 'bg-emerald-600 text-yellow-300 border-yellow-400 shadow-md shadow-emerald-950/20'
@@ -308,7 +324,7 @@ export function AppSidebar({
 
           <button
             type="button"
-            onClick={onOpenProjetosFicFecom}
+            onClick={handleOpenProjetosFicFecom}
             className={`nav-btn ${expandedDesktop ? 'w-full justify-start px-5 py-3 rounded-2xl' : 'w-12 h-12 mx-auto justify-center rounded-xl'} font-bold transition flex items-center border-b-4 text-sm ${
               activeView === 'projetos-fic-fecom'
                 ? 'bg-teal-600 text-white border-teal-800 shadow-md shadow-teal-950/20'
@@ -324,7 +340,7 @@ export function AppSidebar({
 
           <button
             type="button"
-            onClick={onOpenRoteiros}
+            onClick={handleOpenRoteiros}
             className={`nav-btn ${expandedDesktop ? 'w-full justify-start px-5 py-3 rounded-2xl' : 'w-12 h-12 mx-auto justify-center rounded-xl'} font-bold transition flex items-center border-b-4 text-sm ${
               activeView === 'roteiros'
                 ? 'bg-cetecOrange text-white border-[#c55411] shadow-md shadow-orange-950/20'
@@ -340,7 +356,7 @@ export function AppSidebar({
 
           <button
             type="button"
-            onClick={onOpenGaleria}
+            onClick={handleOpenGaleria}
             className={`nav-btn ${expandedDesktop ? 'w-full justify-start px-5 py-3 rounded-2xl' : 'w-12 h-12 mx-auto justify-center rounded-xl'} font-bold transition flex items-center border-b-4 text-sm ${
               activeView === 'galeria'
                 ? 'bg-blue-600 text-white border-blue-900 shadow-md shadow-blue-950/20'
@@ -354,35 +370,35 @@ export function AppSidebar({
             {expandedDesktop && <span className="whitespace-nowrap">Galeria Maker</span>}
           </button>
 
-          {allowUsersTools && (
-            <>
-              <button
-                type="button"
-                onClick={onOpenAdminUsers}
-                className={`nav-btn ${expandedDesktop ? 'w-full justify-start px-5 py-3 rounded-2xl' : 'w-12 h-12 mx-auto justify-center rounded-xl'} bg-white/10 font-bold hover:bg-white/20 transition flex items-center border-b-4 border-transparent hover:border-white/20 text-sm ${activeView === 'admin-users' ? 'bg-white/20 border-white/30' : ''}`}
-                title="Usuários"
-              >
-                <span className={`material-symbols-rounded text-[20px] ${expandedDesktop ? 'mr-3' : ''}`}>person_add</span>
-                {expandedDesktop && <span className="whitespace-nowrap">Usuários</span>}
-              </button>
-            </>
+          {hasUserManagementAccess && (
+            <button
+              type="button"
+              onClick={handleOpenAdminUsers}
+              className={`nav-btn ${expandedDesktop ? 'w-full justify-start px-5 py-3 rounded-2xl' : 'w-12 h-12 mx-auto justify-center rounded-xl'} bg-white/10 font-bold hover:bg-white/20 transition flex items-center border-b-4 border-transparent hover:border-white/20 text-sm ${activeView === 'admin-users' ? 'bg-white/20 border-white/30' : ''}`}
+              title="Usuários"
+            >
+              <span className={`material-symbols-rounded text-[20px] ${expandedDesktop ? 'mr-3' : ''}`}>person_add</span>
+              {expandedDesktop && <span className="whitespace-nowrap">Usuários</span>}
+            </button>
           )}
 
-          <button
-            type="button"
-            onClick={onOpenDatabaseControl}
-            className={`nav-btn ${expandedDesktop ? 'w-full justify-start px-5 py-3 rounded-2xl' : 'w-12 h-12 mx-auto justify-center rounded-xl'} font-bold transition flex items-center border-b-4 text-sm ${
-              activeView === 'database-control'
-                ? 'bg-amber-600 text-white border-amber-800 shadow-md shadow-amber-950/20'
-                : 'bg-white/10 hover:bg-amber-600/30 border-transparent hover:border-amber-400/40 text-amber-200'
-            }`}
-            title="Controle do Banco de Dados & Ciclo Anual"
-          >
-            <span className={`material-symbols-rounded text-[20px] ${expandedDesktop ? 'mr-3' : ''} ${activeView === 'database-control' ? 'text-white' : 'text-amber-300'}`}>
-              database
-            </span>
-            {expandedDesktop && <span className="whitespace-nowrap font-bold">Banco de Dados</span>}
-          </button>
+          {hasDatabaseAccess && (
+            <button
+              type="button"
+              onClick={handleOpenDatabaseControl}
+              className={`nav-btn ${expandedDesktop ? 'w-full justify-start px-5 py-3 rounded-2xl' : 'w-12 h-12 mx-auto justify-center rounded-xl'} font-bold transition flex items-center border-b-4 text-sm ${
+                activeView === 'database-control'
+                  ? 'bg-amber-600 text-white border-amber-800 shadow-md shadow-amber-950/20'
+                  : 'bg-white/10 hover:bg-amber-600/30 border-transparent hover:border-amber-400/40 text-amber-200'
+              }`}
+              title="Controle do Banco de Dados & Ciclo Anual"
+            >
+              <span className={`material-symbols-rounded text-[20px] ${expandedDesktop ? 'mr-3' : ''} ${activeView === 'database-control' ? 'text-white' : 'text-amber-300'}`}>
+                database
+              </span>
+              {expandedDesktop && <span className="whitespace-nowrap font-bold">Banco de Dados</span>}
+            </button>
+          )}
         </nav>
 
         <div className={`${expandedDesktop ? 'p-6' : 'p-3'} space-y-2 text-xs text-white/75 font-bold transition-all duration-300`}>

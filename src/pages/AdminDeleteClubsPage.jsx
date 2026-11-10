@@ -16,6 +16,7 @@ export function AdminDeleteClubsPage({
   onOpenGaleria,
   onOpenClubesCompeticao,
   onOpenProjetosFicFecom,
+  onOpenDatabaseControl,
   onOpenNewClub,
   onOpenAdminDeleteClubs,
   onOpenAdminUsers,
@@ -98,6 +99,7 @@ export function AdminDeleteClubsPage({
         onOpenGaleria={onOpenGaleria}
         onOpenClubesCompeticao={onOpenClubesCompeticao}
         onOpenProjetosFicFecom={onOpenProjetosFicFecom}
+        onOpenDatabaseControl={onOpenDatabaseControl}
         onOpenNewClub={onOpenNewClub}
         onOpenAdminDeleteClubs={onOpenAdminDeleteClubs}
         onOpenAdminUsers={onOpenAdminUsers}

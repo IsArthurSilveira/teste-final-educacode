@@ -8,6 +8,7 @@ import {
   saveClubeCompeticao,
 } from '../data/defaultClubesCompeticao';
 import type { AlunoCompeticao, ClubeCompeticao, EncontroCompeticao } from '../data/defaultClubesCompeticao';
+import { isAnyAdmin } from '../utils/permissions';
 
 interface ClubesCompeticaoPageProps {
   userName: string;
@@ -517,7 +518,7 @@ export function ClubesCompeticaoPage({
     handleSave(updatedClube);
   }
 
-  const isAdmin = userRole === 'admin' || userRole === 'superadmin' || allowAdminTools;
+  const isAdmin = isAnyAdmin(userRole);
 
   return (
     <div id="main-app" className="app-shell flex flex-col lg:flex-row min-h-screen w-full overflow-x-hidden lg:overflow-hidden lg:h-screen">

@@ -5,6 +5,7 @@ import { RoteiroFormModal } from '../components/RoteiroFormModal';
 import { apiGet, apiPost } from '../services/api';
 import type { RoteiroDidatico } from '../data/defaultRoteiros';
 import { MODULOS_ANOS_INICIAIS, MODULOS_ANOS_FINAIS } from '../data/defaultRoteiros';
+import { canManageMaterials } from '../utils/permissions';
 
 interface RoteirosPageProps {
   userName: string;
@@ -18,6 +19,7 @@ interface RoteirosPageProps {
   onOpenGaleria?: () => void;
   onOpenClubesCompeticao?: () => void;
   onOpenProjetosFicFecom?: () => void;
+  onOpenDatabaseControl?: () => void;
   onOpenNewClub: () => void;
   onOpenAdminDeleteClubs: () => void;
   onOpenAdminUsers: () => void;
@@ -35,6 +37,7 @@ export function RoteirosPage({
   onOpenGaleria,
   onOpenClubesCompeticao,
   onOpenProjetosFicFecom,
+  onOpenDatabaseControl,
   onOpenNewClub,
   onOpenAdminDeleteClubs,
   onOpenAdminUsers,
@@ -52,7 +55,7 @@ export function RoteirosPage({
   const [deleteConfirm, setDeleteConfirm] = useState<RoteiroDidatico | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const isAdmin = String(userRole || '').toLowerCase() === 'administrador';
+  const isAdmin = canManageMaterials(userRole);
 
   async function loadRoteiros() {
     setLoading(true);
@@ -219,6 +222,7 @@ export function RoteirosPage({
         onOpenGaleria={onOpenGaleria}
         onOpenClubesCompeticao={onOpenClubesCompeticao}
         onOpenProjetosFicFecom={onOpenProjetosFicFecom}
+        onOpenDatabaseControl={onOpenDatabaseControl}
       />
 
       <main className="app-main-pane flex-1 flex flex-col min-h-0 overflow-y-auto lg:overflow-y-auto relative bg-white lg:h-screen">

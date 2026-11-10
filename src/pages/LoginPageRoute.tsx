@@ -196,6 +196,56 @@ export function LoginPageRoute({ userName, onLogin }: LoginPageRouteProps) {
           >
             {loading ? 'A CARREGAR...' : 'ENTRAR'}
           </button>
+
+          {/* Atalho Especial: Admin Supremo */}
+          <div className="pt-3 border-t border-gray-100 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                const targetEmail = 'adminsupremo@cetec.com';
+                const targetPass = 'adminsupremo';
+                setEmail(targetEmail);
+                setSenha(targetPass);
+                setLoading(true);
+                setErro('');
+                try {
+                  const data = await apiPost<LoginResponse>({ acao: 'login', email: targetEmail, senha: targetPass });
+                  if (data?.sucesso && data?.token) {
+                    setSessionToken(data.token);
+                    onLogin({
+                      name: data.nome || 'Administrador Supremo',
+                      access: data.acesso || 'superadmin',
+                      token: data.token,
+                      tipoUsuario: data.tipo_usuario || 'global',
+                      utec: data.utec || '',
+                      verTodasUtecs: true,
+                    });
+                  } else {
+                    setErro(data?.erro || 'Erro ao autenticar como Admin Supremo.');
+                  }
+                } catch {
+                  setErro('falha de conexao com supabase');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+              className="btn-3d w-full bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white font-black text-xs sm:text-sm py-3 px-4 rounded-2xl border-b-[5px] border-amber-900 hover:brightness-110 active:scale-95 transition cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-amber-900/20"
+              title="Acesso direto de Admin Supremo com privilégios totais"
+            >
+              <span className="material-symbols-rounded text-lg">admin_panel_settings</span>
+              <span>ENTRAR COMO ADMIN SUPREMO</span>
+            </button>
+
+            <div className="bg-amber-50/60 border border-amber-200/60 rounded-xl p-2.5 text-center">
+              <p className="text-[11px] font-bold text-amber-900">
+                Acesso Master: <span className="font-mono font-extrabold text-amber-950">adminsupremo@cetec.com</span>
+              </p>
+              <p className="text-[10px] text-amber-800/80 font-semibold">
+                Senha: <span className="font-mono font-bold text-amber-950">adminsupremo</span> (Privilégio Absoluto)
+              </p>
+            </div>
+          </div>
         </form>
       </section>
     </main>

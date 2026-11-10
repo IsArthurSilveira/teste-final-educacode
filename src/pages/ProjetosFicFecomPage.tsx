@@ -8,6 +8,7 @@ import {
   saveProjetoFicFecom,
 } from '../data/defaultProjetosFicFecom';
 import type { ProjetoFicFecom } from '../data/defaultProjetosFicFecom';
+import { isAnyAdmin } from '../utils/permissions';
 
 interface ProjetosFicFecomPageProps {
   userName: string;
@@ -53,6 +54,10 @@ export function ProjetosFicFecomPage({
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProjeto, setEditingProjeto] = useState<ProjetoFicFecom | null>(null);
   const [selectedProjetoId, setSelectedProjetoId] = useState<string | null>(null);
+
+  // Modal de Exclusão Padronizado
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [projetoToDelete, setProjetoToDelete] = useState<ProjetoFicFecom | null>(null);
 
   // Modal de Exportação
   const [showExportModal, setShowExportModal] = useState(false);
@@ -146,12 +151,20 @@ export function ProjetosFicFecomPage({
     setEditingProjeto(null);
   }
 
-  function handleDelete(id: string) {
-    if (window.confirm('Deseja realmente remover este projeto?')) {
-      const updated = deleteProjetoFicFecom(id);
-      setProjetos(updated);
-      if (selectedProjetoId === id) setSelectedProjetoId(null);
+  function handleOpenDeleteModal(projeto: ProjetoFicFecom) {
+    setProjetoToDelete(projeto);
+    setDeleteModalOpen(true);
+  }
+
+  function handleConfirmDeleteProjeto() {
+    if (!projetoToDelete) return;
+    const updated = deleteProjetoFicFecom(projetoToDelete.id);
+    setProjetos(updated);
+    if (selectedProjetoId === projetoToDelete.id) {
+      setSelectedProjetoId(null);
     }
+    setDeleteModalOpen(false);
+    setProjetoToDelete(null);
   }
 
   function handleUpdateProjectStatus(nextStatus: ProjetoFicFecom['status']) {
@@ -393,7 +406,7 @@ export function ProjetosFicFecomPage({
     }
   }
 
-  const isAdmin = userRole === 'admin' || userRole === 'superadmin' || allowAdminTools;
+  const isAdmin = isAnyAdmin(userRole);
 
   return (
     <div id="main-app" className="app-shell flex flex-col lg:flex-row min-h-screen w-full overflow-x-hidden lg:overflow-hidden lg:h-screen">
@@ -442,6 +455,18 @@ export function ProjetosFicFecomPage({
                     <span className="material-symbols-rounded text-sm">edit</span>
                     <span>Editar Informações</span>
                   </button>
+
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDeleteModal(selectedProjeto)}
+                      className="px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 hover:bg-rose-100 font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                      title="Excluir este projeto"
+                    >
+                      <span className="material-symbols-rounded text-sm">delete</span>
+                      <span>Excluir</span>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => setSelectedProjetoId(null)}
@@ -1089,7 +1114,7 @@ export function ProjetosFicFecomPage({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDelete(proj.id);
+                                handleOpenDeleteModal(proj);
                               }}
                               className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer"
                               title="Excluir projeto"
@@ -1233,6 +1258,72 @@ export function ProjetosFicFecomPage({
                 className="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-black transition cursor-pointer"
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </BaseModal>
+      )}
+
+      {/* Modal de Excluir Projeto FIC & FECOM Padronizado */}
+      {deleteModalOpen && projetoToDelete && (
+        <BaseModal
+          open={deleteModalOpen}
+          onClose={() => {
+            setDeleteModalOpen(false);
+            setProjetoToDelete(null);
+          }}
+          title="Excluir Projeto"
+          size="sm"
+        >
+          <div className="space-y-4 text-left">
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <span className="material-symbols-rounded text-xl">warning</span>
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-rose-950 uppercase tracking-wider">
+                  Confirmação de Exclusão
+                </h4>
+                <p className="text-[11px] font-semibold text-rose-800">
+                  Esta ação é irreversível e removerá permanentemente o projeto e todos os seus dados.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-1">
+              <p className="text-xs font-black text-gray-900">
+                {projetoToDelete.titulo}
+              </p>
+              <p className="text-[11px] font-semibold text-gray-600">
+                Escola: <strong>{projetoToDelete.escola}</strong> ({projetoToDelete.utec})
+              </p>
+              <div className="flex items-center gap-2 pt-1 text-[10px] font-bold text-gray-500">
+                <span>{projetoToDelete.integrantesList?.length || 0} integrantes</span>
+                <span>•</span>
+                <span className="uppercase text-blue-700 font-black">{projetoToDelete.modalidade}</span>
+                <span>•</span>
+                <span className="capitalize">{projetoToDelete.status === 'em_andamento' ? 'Em andamento' : projetoToDelete.status === 'concluido' ? 'Concluído' : 'Pendente'}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setProjetoToDelete(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteProjeto}
+                className="btn-3d px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black border-b-[4px] border-rose-800 transition cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <span className="material-symbols-rounded text-sm">delete</span>
+                <span>Excluir Projeto</span>
               </button>
             </div>
           </div>

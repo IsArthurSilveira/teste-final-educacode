@@ -10,6 +10,7 @@ import {
   toggleCurtidaFoto,
 } from '../data/defaultGaleria';
 import type { FotoGaleria } from '../data/defaultGaleria';
+import { isAnyAdmin } from '../utils/permissions';
 
 interface GaleriaPageProps {
   userName: string;
@@ -24,6 +25,7 @@ interface GaleriaPageProps {
   onOpenGaleria?: () => void;
   onOpenClubesCompeticao?: () => void;
   onOpenProjetosFicFecom?: () => void;
+  onOpenDatabaseControl?: () => void;
   onOpenNewClub?: () => void;
   onOpenAdminDeleteClubs?: () => void;
   onOpenAdminUsers?: () => void;
@@ -38,8 +40,10 @@ export function GaleriaPage({
   onOpenDashboard,
   onOpenClubs,
   onOpenRoteiros,
+  onOpenGaleria,
   onOpenClubesCompeticao,
   onOpenProjetosFicFecom,
+  onOpenDatabaseControl,
   onOpenAdminUsers,
 }: GaleriaPageProps) {
   const [fotos, setFotos] = useState<FotoGaleria[]>(() => getStoredGaleriaFotos());
@@ -106,7 +110,7 @@ export function GaleriaPage({
     }
   }
 
-  const isAdmin = userRole === 'admin' || userRole === 'superadmin';
+  const isAdmin = isAnyAdmin(userRole);
 
   return (
     <div id="main-app" className="app-shell flex flex-col lg:flex-row min-h-screen w-full overflow-x-hidden lg:overflow-hidden lg:h-screen">
@@ -119,9 +123,10 @@ export function GaleriaPage({
         onOpenClubs={onOpenClubs}
         onOpenAdminUsers={onOpenAdminUsers}
         onOpenRoteiros={onOpenRoteiros}
-        onOpenGaleria={() => {}}
+        onOpenGaleria={onOpenGaleria || (() => {})}
         onOpenClubesCompeticao={onOpenClubesCompeticao}
         onOpenProjetosFicFecom={onOpenProjetosFicFecom}
+        onOpenDatabaseControl={onOpenDatabaseControl}
       />
 
       <main className="app-main-pane flex-1 flex flex-col min-h-0 overflow-y-auto lg:overflow-y-auto relative bg-white lg:h-screen">

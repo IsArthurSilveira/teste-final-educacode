@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { Navigate } from 'react-router-dom';
 import { AppSidebar } from '../components/AppSidebar';
 import {
   DEFAULT_SUPABASE_URL,
@@ -17,6 +18,7 @@ import {
   executeAnnualReset,
 } from '../services/databaseControl';
 import type { DatabaseSummaryStats } from '../services/databaseControl';
+import { canAccessDatabase, isSuperAdmin } from '../utils/permissions';
 
 interface DatabaseControlPageProps {
   userName: string;
@@ -41,6 +43,7 @@ const AUTH_SESSION_KEY = 'CETEC_DB_CONTROL_AUTH';
 
 export function DatabaseControlPage({
   userName,
+  userRole,
   allowUsersTools = false,
   onLogout,
   onOpenDashboard,
@@ -52,9 +55,13 @@ export function DatabaseControlPage({
   onOpenDatabaseControl,
   onOpenAdminUsers,
 }: DatabaseControlPageProps) {
-  // Autenticação por senha 'adminsupremo'
+  if (!canAccessDatabase(userRole)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Autenticação por permissão Admin Supremo ou senha 'adminsupremo'
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem(AUTH_SESSION_KEY) === MASTER_PASSWORD;
+    return isSuperAdmin(userRole) || sessionStorage.getItem(AUTH_SESSION_KEY) === MASTER_PASSWORD;
   });
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -250,8 +257,9 @@ export function DatabaseControlPage({
 
   // Copiar SQL Setup
   function handleCopySql() {
-    const sqlText = `-- Script de Configuração CETEC Supabase
--- Copie e execute este código no SQL Editor do novo projeto Supabase
+    const sqlText = `-- ==============================================================================
+-- SCRIPT COMPLETO DE CRIAÇÃO DO BANCO DE DADOS SUPABASE (CETEC - EDUCACODE)
+-- ==============================================================================
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS public.usuarios (
@@ -305,7 +313,153 @@ CREATE TABLE IF NOT EXISTS public.encontros (
     quantidade_alunos INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
-);`;
+);
+
+CREATE TABLE IF NOT EXISTS public.roteiros_didaticos (
+    id TEXT PRIMARY KEY,
+    segmento TEXT NOT NULL DEFAULT 'ANOS INICIAIS',
+    titulo TEXT NOT NULL,
+    subtitulo TEXT NOT NULL DEFAULT '',
+    ano_sugerido TEXT DEFAULT '',
+    categoria TEXT DEFAULT 'Robótica Educacional',
+    modulo TEXT DEFAULT '',
+    duracao TEXT DEFAULT '2 Encontros (4h)',
+    nivel TEXT DEFAULT 'Iniciante',
+    bncc JSONB DEFAULT '[]'::jsonb,
+    objetivos JSONB DEFAULT '[]'::jsonb,
+    materiais JSONB DEFAULT '[]'::jsonb,
+    etapas JSONB DEFAULT '{}'::jsonb,
+    link_material TEXT DEFAULT '',
+    autor TEXT DEFAULT 'Equipe Pedagógica CETEC',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.clubes_competicao (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome TEXT NOT NULL,
+    escola TEXT NOT NULL DEFAULT '',
+    utec TEXT NOT NULL DEFAULT '',
+    competicao TEXT NOT NULL DEFAULT 'Geral',
+    nivel TEXT NOT NULL DEFAULT 'Nível 1 (Anos Iniciais)',
+    prof TEXT DEFAULT '',
+    tecnico TEXT DEFAULT '',
+    dias TEXT DEFAULT '',
+    horario TEXT DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pendente',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.competidores (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_clube_competicao UUID NOT NULL REFERENCES public.clubes_competicao(id) ON DELETE CASCADE,
+    matricula TEXT DEFAULT '',
+    nome TEXT NOT NULL,
+    genero TEXT DEFAULT 'M' CHECK (genero IN ('M', 'F')),
+    tamanho_camisa TEXT DEFAULT 'M',
+    data_registro TEXT DEFAULT to_char(now(), 'DD/MM/YYYY'),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.encontros_competicao (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_clube_competicao UUID NOT NULL REFERENCES public.clubes_competicao(id) ON DELETE CASCADE,
+    data TEXT DEFAULT '',
+    assunto TEXT NOT NULL DEFAULT '',
+    detalhamento TEXT DEFAULT '',
+    quantidade_alunos TEXT DEFAULT '0',
+    status TEXT NOT NULL DEFAULT 'pendente',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.projetos_fic_fecom (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    titulo TEXT NOT NULL,
+    modalidade TEXT NOT NULL DEFAULT 'FIC',
+    escola TEXT NOT NULL DEFAULT '',
+    utec TEXT NOT NULL DEFAULT '',
+    professor TEXT DEFAULT '',
+    estagiario TEXT DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pendente',
+    data_cadastro TEXT DEFAULT to_char(now(), 'YYYY-MM-DD'),
+    justificativa_tematica TEXT DEFAULT '',
+    processo_construcao TEXT DEFAULT '',
+    pensar_brincando TEXT DEFAULT '',
+    linguagens_usadas JSONB DEFAULT '[]'::jsonb,
+    proposito_coletivo TEXT DEFAULT '',
+    recursos_robotica JSONB DEFAULT '[]'::jsonb,
+    recursos_outro_descricao TEXT DEFAULT '',
+    conteudos_escolares TEXT DEFAULT '',
+    competencias_bncc TEXT DEFAULT '',
+    habilidades_bncc TEXT DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.integrantes_projeto (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_projeto UUID NOT NULL REFERENCES public.projetos_fic_fecom(id) ON DELETE CASCADE,
+    nome TEXT NOT NULL,
+    matricula TEXT DEFAULT '',
+    ano_escolar TEXT DEFAULT '',
+    genero TEXT DEFAULT 'M' CHECK (genero IN ('M', 'F')),
+    tamanho_camisa TEXT DEFAULT 'M',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.galeria_fotos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    url TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    legenda TEXT DEFAULT '',
+    descricao TEXT DEFAULT '',
+    autor TEXT NOT NULL DEFAULT 'CETEC',
+    cargo_autor TEXT DEFAULT '',
+    escola TEXT DEFAULT '',
+    utec TEXT DEFAULT '',
+    clube_nome TEXT DEFAULT '',
+    modulo TEXT DEFAULT '',
+    data_envio TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    curtidas INTEGER DEFAULT 0,
+    consentimento_confirmado BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- HABILITAR RLS COM ACESSO PÚBLICO TOTAL
+ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clubes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.alunos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.encontros ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.roteiros_didaticos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clubes_competicao ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competidores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.encontros_competicao ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.projetos_fic_fecom ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.integrantes_projeto ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.galeria_fotos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Acesso publico usuarios" ON public.usuarios FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acesso publico clubes" ON public.clubes FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acesso publico alunos" ON public.alunos FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acesso publico encontros" ON public.encontros FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acesso publico roteiros" ON public.roteiros_didaticos FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acesso publico clubes_competicao" ON public.clubes_competicao FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acesso publico competidores" ON public.competidores FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acesso publico encontros_competicao" ON public.encontros_competicao FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acesso publico projetos_fic_fecom" ON public.projetos_fic_fecom FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acesso publico integrantes_projeto" ON public.integrantes_projeto FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Acesso publico galeria_fotos" ON public.galeria_fotos FOR ALL USING (true) WITH CHECK (true);
+
+-- REGISTRO INICIAL ÚNICO: ADMIN SUPREMO
+INSERT INTO public.usuarios (nome, email, senha, acesso, tipo_usuario, utec, ver_todas_utecs)
+VALUES ('Administrador Supremo', 'adminsupremo@cetec.com', 'adminsupremo', 'superadmin', 'global', '', true)
+ON CONFLICT (email) DO UPDATE SET
+    nome = 'Administrador Supremo',
+    senha = 'adminsupremo',
+    acesso = 'superadmin',
+    tipo_usuario = 'global',
+    ver_todas_utecs = true;`;
 
     navigator.clipboard.writeText(sqlText);
     setSqlCopied(true);

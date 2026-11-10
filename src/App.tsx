@@ -21,9 +21,11 @@ import {
   USER_ROLE_STORAGE_KEY,
   USER_UTEC_SCOPE_STORAGE_KEY,
   USER_VIEW_ALL_UTECS_STORAGE_KEY,
+  canAccessDatabase,
   canCreateClub,
   canDeleteClub,
   canManageUsers,
+  isAnyAdmin,
   normalizeAccessLevel,
   resolveUserScope,
 } from './utils/permissions';
@@ -182,11 +184,11 @@ function AppRoutes() {
 
   const normalizedRole = normalizeAccessLevel(userRole);
   const allowCreateClub = canCreateClub(normalizedRole);
-  const allowAdminTools = canDeleteClub(normalizedRole) || canManageUsers(normalizedRole);
-  const allowUsersTools = allowAdminTools;
+  const allowAdminTools = isAnyAdmin(normalizedRole);
+  const allowUsersTools = canManageUsers(normalizedRole);
   const utecOptions = useMemo(() => buildUtecOptions(clubes, userCanSeeAllUtecs, resolvedUtecScope), [clubes, resolvedUtecScope, userCanSeeAllUtecs]);
   const loadAdminUsers = useCallback(async () => {
-    if (!allowAdminTools) return;
+    if (!allowUsersTools) return;
 
     setAdminUsersLoading(true);
     setAdminUsersError('');
@@ -200,7 +202,7 @@ function AppRoutes() {
     } finally {
       setAdminUsersLoading(false);
     }
-  }, [allowAdminTools]);
+  }, [allowUsersTools]);
 
   useEffect(() => {
     if (userName && sessionChecked) {
@@ -209,10 +211,10 @@ function AppRoutes() {
   }, [userName, sessionChecked, loadClubes, resolvedUtecScope, userCanSeeAllUtecs]);
 
   useEffect(() => {
-    if (userName && sessionChecked && allowAdminTools) {
+    if (userName && sessionChecked && allowUsersTools) {
       loadAdminUsers();
     }
-  }, [userName, sessionChecked, allowAdminTools, loadAdminUsers]);
+  }, [userName, sessionChecked, allowUsersTools, loadAdminUsers]);
 
   const auth = useMemo<AuthContextValue>(() => ({
     userName,
@@ -360,51 +362,67 @@ function AppRoutes() {
         />
         <Route
           path="/admin/excluir-clubes"
-          element={(
-            <AdminDeleteClubsPage
-              userName={auth.userName}
-              userRole={normalizedRole}
-              allowAdminTools={allowAdminTools}
-              allowUsersTools={allowUsersTools}
-              onLogout={auth.logout}
-              onOpenDashboard={() => navigate('/dashboard')}
-              onOpenClubs={() => navigate('/clubes')}
-              onOpenRoteiros={() => navigate('/roteiros')}
-              onOpenNewClub={openNewClubModal}
-              onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
-              onOpenAdminUsers={() => navigate('/admin/usuarios')}
-              clubes={clubes}
-              loading={loading}
-              error={error}
-              onDeleteClub={handleDeleteClub}
-              onRefreshClubs={loadClubes}
-            />
-          )}
+          element={
+            canDeleteClub(normalizedRole) ? (
+              <AdminDeleteClubsPage
+                userName={auth.userName}
+                userRole={normalizedRole}
+                allowAdminTools={allowAdminTools}
+                allowUsersTools={allowUsersTools}
+                onLogout={auth.logout}
+                onOpenDashboard={() => navigate('/dashboard')}
+                onOpenClubs={() => navigate('/clubes')}
+                onOpenRoteiros={() => navigate('/roteiros')}
+                onOpenGaleria={() => navigate('/galeria')}
+                onOpenClubesCompeticao={() => navigate('/clubes-competicao')}
+                onOpenProjetosFicFecom={() => navigate('/projetos-fic-fecom')}
+                onOpenDatabaseControl={() => navigate('/admin/banco-de-dados')}
+                onOpenNewClub={openNewClubModal}
+                onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
+                onOpenAdminUsers={() => navigate('/admin/usuarios')}
+                clubes={clubes}
+                loading={loading}
+                error={error}
+                onDeleteClub={handleDeleteClub}
+                onRefreshClubs={loadClubes}
+              />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
         />
         <Route
           path="/admin/usuarios"
-          element={(
-            <AdminUsersPage
-              userName={auth.userName}
-              userRole={normalizedRole}
-              allowAdminTools={allowAdminTools}
-              allowUsersTools={allowUsersTools}
-              onLogout={auth.logout}
-              onOpenDashboard={() => navigate('/dashboard')}
-              onOpenClubs={() => navigate('/clubes')}
-              onOpenRoteiros={() => navigate('/roteiros')}
-              onOpenNewClub={openNewClubModal}
-              onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
-              onOpenAdminUsers={() => navigate('/admin/usuarios')}
-              utecOptions={utecOptions as never[]}
-              usuarios={adminUsers as never[]}
-              usuariosLoading={adminUsersLoading}
-              usuariosError={adminUsersError}
-              onRefreshUsuarios={refreshAdminUsers}
-              onSaveUser={handleSaveUser}
-              onDeleteUser={handleDeleteUser}
-            />
-          )}
+          element={
+            canManageUsers(normalizedRole) ? (
+              <AdminUsersPage
+                userName={auth.userName}
+                userRole={normalizedRole}
+                allowAdminTools={allowAdminTools}
+                allowUsersTools={allowUsersTools}
+                onLogout={auth.logout}
+                onOpenDashboard={() => navigate('/dashboard')}
+                onOpenClubs={() => navigate('/clubes')}
+                onOpenRoteiros={() => navigate('/roteiros')}
+                onOpenGaleria={() => navigate('/galeria')}
+                onOpenClubesCompeticao={() => navigate('/clubes-competicao')}
+                onOpenProjetosFicFecom={() => navigate('/projetos-fic-fecom')}
+                onOpenDatabaseControl={() => navigate('/admin/banco-de-dados')}
+                onOpenNewClub={openNewClubModal}
+                onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
+                onOpenAdminUsers={() => navigate('/admin/usuarios')}
+                utecOptions={utecOptions as never[]}
+                usuarios={adminUsers as never[]}
+                usuariosLoading={adminUsersLoading}
+                usuariosError={adminUsersError}
+                onRefreshUsuarios={refreshAdminUsers}
+                onSaveUser={handleSaveUser}
+                onDeleteUser={handleDeleteUser}
+              />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
         />
         <Route
           path="/roteiros"
@@ -421,6 +439,7 @@ function AppRoutes() {
               onOpenGaleria={() => navigate('/galeria')}
               onOpenClubesCompeticao={() => navigate('/clubes-competicao')}
               onOpenProjetosFicFecom={() => navigate('/projetos-fic-fecom')}
+              onOpenDatabaseControl={() => navigate('/admin/banco-de-dados')}
               onOpenNewClub={openNewClubModal}
               onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
               onOpenAdminUsers={() => navigate('/admin/usuarios')}
@@ -443,6 +462,7 @@ function AppRoutes() {
               onOpenGaleria={() => navigate('/galeria')}
               onOpenClubesCompeticao={() => navigate('/clubes-competicao')}
               onOpenProjetosFicFecom={() => navigate('/projetos-fic-fecom')}
+              onOpenDatabaseControl={() => navigate('/admin/banco-de-dados')}
               onOpenNewClub={openNewClubModal}
               onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
               onOpenAdminUsers={() => navigate('/admin/usuarios')}
@@ -495,25 +515,29 @@ function AppRoutes() {
         />
         <Route
           path="/admin/banco-de-dados"
-          element={(
-            <DatabaseControlPage
-              userName={auth.userName}
-              userRole={normalizedRole}
-              allowAdminTools={allowAdminTools}
-              allowUsersTools={allowUsersTools}
-              onLogout={auth.logout}
-              onOpenDashboard={() => navigate('/dashboard')}
-              onOpenClubs={() => navigate('/clubes')}
-              onOpenRoteiros={() => navigate('/roteiros')}
-              onOpenGaleria={() => navigate('/galeria')}
-              onOpenClubesCompeticao={() => navigate('/clubes-competicao')}
-              onOpenProjetosFicFecom={() => navigate('/projetos-fic-fecom')}
-              onOpenDatabaseControl={() => navigate('/admin/banco-de-dados')}
-              onOpenNewClub={openNewClubModal}
-              onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
-              onOpenAdminUsers={() => navigate('/admin/usuarios')}
-            />
-          )}
+          element={
+            canAccessDatabase(normalizedRole) ? (
+              <DatabaseControlPage
+                userName={auth.userName}
+                userRole={normalizedRole}
+                allowAdminTools={allowAdminTools}
+                allowUsersTools={allowUsersTools}
+                onLogout={auth.logout}
+                onOpenDashboard={() => navigate('/dashboard')}
+                onOpenClubs={() => navigate('/clubes')}
+                onOpenRoteiros={() => navigate('/roteiros')}
+                onOpenGaleria={() => navigate('/galeria')}
+                onOpenClubesCompeticao={() => navigate('/clubes-competicao')}
+                onOpenProjetosFicFecom={() => navigate('/projetos-fic-fecom')}
+                onOpenDatabaseControl={() => navigate('/admin/banco-de-dados')}
+                onOpenNewClub={openNewClubModal}
+                onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
+                onOpenAdminUsers={() => navigate('/admin/usuarios')}
+              />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
         />
         <Route
           path="/clubes/:clubId"
