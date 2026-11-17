@@ -36,7 +36,7 @@ export function ClubFormModal({
       setForm({
         nome: initialValues.nome || '',
         escola: initialValues.escola || '',
-        utec: initialValues.utec || '',
+        utec: initialValues.utec || lockedUtec || '',
         prof: initialValues.prof || '',
         estag: initialValues.estag || '',
         dias: initialValues.dias || '',
@@ -44,9 +44,9 @@ export function ClubFormModal({
         categoria: initialValues.categoria || 'Clubes Iniciais',
       });
     } else {
-      setForm(EMPTY_FORM);
+      setForm({ ...EMPTY_FORM, utec: lockedUtec || '' });
     }
-  }, [open, initialValues]);
+  }, [open, initialValues, lockedUtec]);
 
   if (!open) return null;
 
