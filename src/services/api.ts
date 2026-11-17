@@ -387,6 +387,32 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
         return (data || []) as unknown as TResponse;
       }
 
+      case 'listar_galeria': {
+        const { data, error } = await supabase
+          .from('galeria_fotos')
+          .select('*, utec:utecs(nome)')
+          .order('data_envio', { ascending: false });
+        if (error) throw error;
+
+        const mapped = (data || []).map((foto: any) => ({
+          id: String(foto.id),
+          url: foto.url,
+          titulo: foto.titulo || '',
+          legenda: foto.legenda || '',
+          descricao: foto.descricao || '',
+          autor: foto.autor || 'CETEC',
+          cargoAutor: foto.cargo_autor || '',
+          escola: foto.escola || '',
+          utec: foto.utec?.nome || foto.id_utec || '',
+          clubeNome: foto.clube_nome || '',
+          modulo: foto.modulo || '',
+          dataEnvio: foto.data_envio || foto.created_at,
+          curtidas: Number(foto.curtidas || 0),
+          consentimentoConfirmado: Boolean(foto.consentimento_confirmado),
+        }));
+        return mapped as unknown as TResponse;
+      }
+
       case 'listar_roteiros': {
         const { data, error } = await supabase
           .from('roteiros_didaticos')
@@ -567,6 +593,66 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
 
         if (error) throw error;
         return { sucesso: true, id: data?.id, mensagem: 'Clube criado com sucesso.' } as unknown as TResponse;
+      }
+
+      case 'salvar_galeria': {
+        const foto = (payload.foto || payload) as any;
+        const fotoData = {
+          url: String(foto.url || ''),
+          titulo: String(foto.titulo || '').trim(),
+          legenda: String(foto.legenda || '').trim(),
+          descricao: String(foto.descricao || '').trim(),
+          autor: String(foto.autor || 'CETEC').trim(),
+          cargo_autor: String(foto.cargoAutor || foto.cargo_autor || '').trim(),
+          escola: String(foto.escola || '').trim(),
+          id_utec: Number.isInteger(Number(foto.id_utec)) ? Number(foto.id_utec) : null,
+          clube_nome: String(foto.clubeNome || foto.clube_nome || '').trim(),
+          modulo: String(foto.modulo || '').trim(),
+          data_envio: foto.dataEnvio || foto.data_envio || new Date().toISOString(),
+          curtidas: Number(foto.curtidas || 0),
+          consentimento_confirmado: Boolean(foto.consentimentoConfirmado ?? foto.consentimento_confirmado),
+        };
+
+        if (!fotoData.url || !fotoData.titulo || !fotoData.legenda) {
+          return { sucesso: false, erro: 'Imagem, título e legenda são obrigatórios.' } as unknown as TResponse;
+        }
+
+        const fotoId = foto.id && Number.isInteger(Number(foto.id)) ? Number(foto.id) : undefined;
+        const query = fotoId
+          ? supabase.from('galeria_fotos').update(fotoData).eq('id', fotoId)
+          : supabase.from('galeria_fotos').insert(fotoData);
+        const { data, error } = await query.select('id').single();
+        if (error) throw error;
+        return { sucesso: true, id: data.id, mensagem: 'Foto enviada com sucesso.' } as unknown as TResponse;
+      }
+
+      case 'excluir_galeria': {
+        const fotoId = Number(payload.id);
+        if (!Number.isInteger(fotoId)) {
+          return { sucesso: false, erro: 'Identificador da foto inválido.' } as unknown as TResponse;
+        }
+        const { error } = await supabase.from('galeria_fotos').delete().eq('id', fotoId);
+        if (error) throw error;
+        return { sucesso: true, mensagem: 'Foto excluída com sucesso.' } as unknown as TResponse;
+      }
+
+      case 'curtir_galeria': {
+        const fotoId = Number(payload.id);
+        if (!Number.isInteger(fotoId)) {
+          return { sucesso: false, erro: 'Identificador da foto inválido.' } as unknown as TResponse;
+        }
+        const { data, error } = await supabase
+          .from('galeria_fotos')
+          .select('curtidas')
+          .eq('id', fotoId)
+          .single();
+        if (error) throw error;
+        const { error: updateError } = await supabase
+          .from('galeria_fotos')
+          .update({ curtidas: Number(data?.curtidas || 0) + 1 })
+          .eq('id', fotoId);
+        if (updateError) throw updateError;
+        return { sucesso: true, mensagem: 'Curtida registrada.' } as unknown as TResponse;
       }
 
       case 'atualizar_status_clube': {

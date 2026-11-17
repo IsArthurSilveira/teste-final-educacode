@@ -13,7 +13,7 @@ export interface ClubeOption {
 interface FotoUploadModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (foto: FotoGaleria) => void;
+  onSubmit: (foto: FotoGaleria) => Promise<void>;
   currentUser: string;
   clubes?: ClubeOption[];
 }
@@ -77,7 +77,7 @@ export function FotoUploadModal({
     reader.readAsDataURL(file);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
@@ -119,7 +119,13 @@ export function FotoUploadModal({
       consentimentoConfirmado: true,
     };
 
-    onSubmit(novaFoto);
+    try {
+      await onSubmit(novaFoto);
+    } catch (submitError: any) {
+      setError(submitError?.message || 'Não foi possível enviar a foto.');
+      return;
+    }
+
     // Reset form
     setPreviewUrl('');
     setTitulo('');

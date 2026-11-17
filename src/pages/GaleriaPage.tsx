@@ -1,14 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppSidebar } from '../components/AppSidebar';
 import { FotoDetailModal } from '../components/FotoDetailModal';
 import { FotoUploadModal } from '../components/FotoUploadModal';
 import { BaseModal } from '../components/ui/BaseModal';
-import {
-  deleteFotoGaleria,
-  getStoredGaleriaFotos,
-  saveFotoGaleria,
-  toggleCurtidaFoto,
-} from '../data/defaultGaleria';
+import { apiGet, apiPost } from '../services/api';
 import type { FotoGaleria } from '../data/defaultGaleria';
 import { isAnyAdmin } from '../utils/permissions';
 
@@ -46,12 +41,30 @@ export function GaleriaPage({
   onOpenDatabaseControl,
   onOpenAdminUsers,
 }: GaleriaPageProps) {
-  const [fotos, setFotos] = useState<FotoGaleria[]>(() => getStoredGaleriaFotos());
+  const [fotos, setFotos] = useState<FotoGaleria[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [selectedFoto, setSelectedFoto] = useState<FotoGaleria | null>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedClube, setSelectedClube] = useState('TODOS');
   const [showGuidelinesModal, setShowGuidelinesModal] = useState(false);
+
+  useEffect(() => {
+    async function loadFotos() {
+      try {
+        const response = await apiGet<unknown>({ acao: 'listar_galeria', _t: Date.now() });
+        setFotos(Array.isArray(response) ? response as FotoGaleria[] : []);
+      } catch (loadError: any) {
+        console.error('Erro ao carregar galeria:', loadError);
+        setError(loadError?.message || 'Não foi possível carregar as fotos da galeria.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadFotos();
+  }, []);
 
   const clubesList = useMemo(() => {
     const set = new Set<string>();
@@ -89,22 +102,37 @@ export function GaleriaPage({
     });
   }, [fotos, search, selectedClube]);
 
-  function handleSaveNovaFoto(novaFoto: FotoGaleria) {
-    const updated = saveFotoGaleria(novaFoto);
-    setFotos(updated);
+  async function handleSaveNovaFoto(novaFoto: FotoGaleria) {
+    const result = await apiPost<{ sucesso?: boolean; id?: string | number; erro?: string }>({
+      acao: 'salvar_galeria',
+      foto: novaFoto,
+    });
+    if (!result.sucesso) {
+      throw new Error(result.erro || 'Não foi possível enviar a foto.');
+    }
+    const response = await apiGet<unknown>({ acao: 'listar_galeria', _t: Date.now() });
+    setFotos(Array.isArray(response) ? response as FotoGaleria[] : []);
   }
 
-  function handleDeleteFoto(id: string) {
-    const updated = deleteFotoGaleria(id);
-    setFotos(updated);
+  async function handleDeleteFoto(id: string) {
+    const result = await apiPost<{ sucesso?: boolean; erro?: string }>({ acao: 'excluir_galeria', id });
+    if (!result.sucesso) {
+      throw new Error(result.erro || 'Não foi possível excluir a foto.');
+    }
+    setFotos((current) => current.filter((foto) => foto.id !== id));
     if (selectedFoto?.id === id) {
       setSelectedFoto(null);
     }
   }
 
-  function handleCurtir(id: string) {
-    const updated = toggleCurtidaFoto(id);
-    setFotos(updated);
+  async function handleCurtir(id: string) {
+    const result = await apiPost<{ sucesso?: boolean; erro?: string }>({ acao: 'curtir_galeria', id });
+    if (!result.sucesso) {
+      throw new Error(result.erro || 'Não foi possível registrar a curtida.');
+    }
+    setFotos((current) => current.map((foto) => (
+      foto.id === id ? { ...foto, curtidas: (foto.curtidas || 0) + 1 } : foto
+    )));
     if (selectedFoto && selectedFoto.id === id) {
       setSelectedFoto((prev) => (prev ? { ...prev, curtidas: (prev.curtidas || 0) + 1 } : null));
     }
@@ -246,7 +274,9 @@ export function GaleriaPage({
           </div>
 
           {/* Grid de Imagens da Galeria */}
-          {filteredFotos.length === 0 ? (
+          {loading ? (
+            <div className="p-12 text-center text-sm font-bold text-gray-500">Carregando fotos...</div>
+          ) : filteredFotos.length === 0 ? (
             <div className="p-12 text-center bg-white rounded-3xl border-2 border-dashed border-gray-200 space-y-2">
               <span className="material-symbols-rounded text-5xl text-gray-300">image_not_supported</span>
               <h3 className="text-base font-bold text-gray-700">Nenhuma foto encontrada</h3>
@@ -288,6 +318,11 @@ export function GaleriaPage({
                         <span className="material-symbols-rounded text-xs shrink-0">groups</span>
                         <span className="truncate">{foto.clubeNome || foto.escola}</span>
                       </span>
+                    )}
+                    {error && (
+                      <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold">
+                        {error}
+                      </div>
                     )}
                   </div>
 
