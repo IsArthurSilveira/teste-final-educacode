@@ -327,56 +327,50 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
       }
 
       case 'listar_roteiros': {
-        try {
-          const { data, error } = await supabase
-            .from('roteiros_didaticos')
-            .select('*')
-            .order('created_at', { ascending: false });
+        const { data, error } = await supabase
+          .from('roteiros_didaticos')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-          if (!error && Array.isArray(data) && data.length > 0) {
-            const mapped = data.map((r: any) => ({
-              id: r.id,
-              segmento: String(r.segmento || 'ANOS INICIAIS').toUpperCase(),
-              titulo: r.titulo,
-              subtitulo: r.subtitulo,
-              anoSugerido: r.ano_sugerido || r.anoSugerido || '',
-              modulo: r.modulo || r.categoria || (String(r.segmento || '').toUpperCase() === 'ANOS INICIAIS' ? 'Scratch Jr' : 'Scratch'),
-              categoria: r.categoria || r.modulo || 'Robótica Educacional',
-              duracao: r.duracao || '',
-              nivel: r.nivel || 'Iniciante',
-              bncc: Array.isArray(r.bncc)
-                ? r.bncc
-                : typeof r.bncc === 'string'
-                  ? r.bncc.split(',').map((s: string) => s.trim()).filter(Boolean)
-                  : [],
-              objetivos: Array.isArray(r.objetivos)
-                ? r.objetivos
-                : typeof r.objetivos === 'string'
-                  ? JSON.parse(r.objetivos || '[]')
-                  : [],
-              materiais: Array.isArray(r.materiais)
-                ? r.materiais
-                : typeof r.materiais === 'string'
-                  ? JSON.parse(r.materiais || '[]')
-                  : [],
-              etapas: typeof r.etapas === 'object' && r.etapas !== null
-                ? r.etapas
-                : typeof r.etapas === 'string'
-                  ? JSON.parse(r.etapas || '{}')
-                  : {},
-              linkMaterial: r.link_material || r.linkMaterial || '',
-              autor: r.autor || 'CETEC',
-              createdAt: r.created_at || r.createdAt,
-            }));
-            return mapped as unknown as TResponse;
-          }
-        } catch {
-          // Mantém fallback caso a tabela não exista ainda no Supabase
+        if (error) {
+          throw error;
         }
 
-        const customRoteiros = getStoredCustomRoteiros();
-        const allRoteiros = customRoteiros;
-        return allRoteiros as unknown as TResponse;
+        const mapped = (data || []).map((r: any) => ({
+          id: String(r.id),
+          segmento: String(r.segmento || 'ANOS INICIAIS').toUpperCase(),
+          titulo: r.titulo,
+          subtitulo: r.subtitulo,
+          anoSugerido: r.ano_sugerido || r.anoSugerido || '',
+          modulo: r.modulo || r.categoria || (String(r.segmento || '').toUpperCase() === 'ANOS INICIAIS' ? 'Scratch Jr' : 'Scratch'),
+          categoria: r.categoria || r.modulo || 'Robótica Educacional',
+          duracao: r.duracao || '',
+          nivel: r.nivel || 'Iniciante',
+          bncc: Array.isArray(r.bncc)
+            ? r.bncc
+            : typeof r.bncc === 'string'
+              ? r.bncc.split(',').map((s: string) => s.trim()).filter(Boolean)
+              : [],
+          objetivos: Array.isArray(r.objetivos)
+            ? r.objetivos
+            : typeof r.objetivos === 'string'
+              ? JSON.parse(r.objetivos || '[]')
+              : [],
+          materiais: Array.isArray(r.materiais)
+            ? r.materiais
+            : typeof r.materiais === 'string'
+              ? JSON.parse(r.materiais || '[]')
+              : [],
+          etapas: typeof r.etapas === 'object' && r.etapas !== null
+            ? r.etapas
+            : typeof r.etapas === 'string'
+              ? JSON.parse(r.etapas || '{}')
+              : {},
+          linkMaterial: r.link_material || r.linkMaterial || '',
+          autor: r.autor || 'CETEC',
+          createdAt: r.created_at || r.createdAt,
+        }));
+        return mapped as unknown as TResponse;
       }
 
       default:
@@ -831,40 +825,46 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
           createdAt: roteiro.createdAt || new Date().toISOString(),
         };
 
-        saveCustomRoteiro(formatted);
+        const dbPayload = {
+          segmento: formatted.segmento,
+          titulo: formatted.titulo,
+          subtitulo: formatted.subtitulo,
+          ano_sugerido: formatted.anoSugerido,
+          categoria: formatted.categoria,
+          modulo: formatted.modulo,
+          duracao: formatted.duracao,
+          nivel: formatted.nivel,
+          bncc: formatted.bncc,
+          objetivos: formatted.objetivos,
+          materiais: formatted.materiais,
+          etapas: formatted.etapas,
+          link_material: formatted.linkMaterial,
+          autor: formatted.autor,
+          ...(Number.isInteger(Number(formatted.id)) ? { id: Number(formatted.id) } : {}),
+        };
+        const { data, error } = await supabase
+          .from('roteiros_didaticos')
+          .upsert(dbPayload)
+          .select('id')
+          .single();
 
-        try {
-          await supabase.from('roteiros_didaticos').upsert({
-            id: formatted.id,
-            segmento: formatted.segmento,
-            titulo: formatted.titulo,
-            subtitulo: formatted.subtitulo,
-            ano_sugerido: formatted.anoSugerido,
-            categoria: formatted.categoria,
-            duracao: formatted.duracao,
-            nivel: formatted.nivel,
-            bncc: formatted.bncc,
-            objetivos: formatted.objetivos,
-            materiais: formatted.materiais,
-            etapas: formatted.etapas,
-            link_material: formatted.linkMaterial,
-            autor: formatted.autor,
-          });
-        } catch (e) {
-          console.warn('[Supabase] Tabela roteiros_didaticos opcional, armazenado localmente:', e);
+        if (error) {
+          throw error;
         }
 
-        return { sucesso: true, id: formatted.id, mensagem: 'Plano de aula salvo com sucesso.' } as unknown as TResponse;
+        const persistedId = String(data.id);
+        saveCustomRoteiro({ ...formatted, id: persistedId });
+        return { sucesso: true, id: persistedId, mensagem: 'Plano de aula salvo com sucesso.' } as unknown as TResponse;
       }
 
       case 'excluir_roteiro': {
         const id = String(payload.id || payload.id_roteiro || '');
-        deleteCustomRoteiro(id);
-        try {
-          await supabase.from('roteiros_didaticos').delete().eq('id', id);
-        } catch {
-          // ignore
+        if (!id || !Number.isInteger(Number(id))) {
+          return { sucesso: false, erro: 'Identificador do roteiro inválido.' } as unknown as TResponse;
         }
+        const { error } = await supabase.from('roteiros_didaticos').delete().eq('id', Number(id));
+        if (error) throw error;
+        deleteCustomRoteiro(id);
         return { sucesso: true, mensagem: 'Plano de aula removido com sucesso.' } as unknown as TResponse;
       }
 
@@ -876,7 +876,7 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
     console.error(`Erro ao executar apiPost (${acao}):`, err);
     return {
       sucesso: false,
-      erro: 'falha de conexao com supabase',
+      erro: err instanceof Error ? err.message : 'Falha ao executar a operação no Supabase.',
     } as unknown as TResponse;
   }
 }
