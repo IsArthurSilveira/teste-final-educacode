@@ -66,6 +66,66 @@ export function deleteCustomRoteiro(id: string): void {
 
 type RecordValue = Record<string, unknown>;
 
+function normalizeJsonList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  const text = value.trim();
+  if (!text) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => String(item).trim()).filter(Boolean);
+    }
+    if (typeof parsed === 'string' && parsed.trim()) {
+      return [parsed.trim()];
+    }
+  } catch {
+    // Registros legados podem conter texto simples em colunas JSONB.
+  }
+
+  return text.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+}
+
+function normalizeEtapas(value: unknown): RoteiroDidatico['etapas'] {
+  const defaultEtapas: RoteiroDidatico['etapas'] = {
+    aquecimento: '',
+    desenvolvimento: '',
+    maoNaMassa: '',
+    desafio: '',
+    avaliacao: '',
+  };
+
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const etapas = value as Record<string, unknown>;
+    return {
+      aquecimento: String(etapas.aquecimento || ''),
+      desenvolvimento: String(etapas.desenvolvimento || ''),
+      maoNaMassa: String(etapas.maoNaMassa || etapas.mao_na_massa || ''),
+      desafio: String(etapas.desafio || ''),
+      avaliacao: String(etapas.avaliacao || ''),
+    };
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      return normalizeEtapas(JSON.parse(value));
+    } catch {
+      return { ...defaultEtapas, desenvolvimento: value.trim() };
+    }
+  }
+
+  return defaultEtapas;
+}
+
 export interface ApiRequestPayload extends RecordValue {
   acao?: string;
 }
@@ -351,21 +411,9 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
             : typeof r.bncc === 'string'
               ? r.bncc.split(',').map((s: string) => s.trim()).filter(Boolean)
               : [],
-          objetivos: Array.isArray(r.objetivos)
-            ? r.objetivos
-            : typeof r.objetivos === 'string'
-              ? JSON.parse(r.objetivos || '[]')
-              : [],
-          materiais: Array.isArray(r.materiais)
-            ? r.materiais
-            : typeof r.materiais === 'string'
-              ? JSON.parse(r.materiais || '[]')
-              : [],
-          etapas: typeof r.etapas === 'object' && r.etapas !== null
-            ? r.etapas
-            : typeof r.etapas === 'string'
-              ? JSON.parse(r.etapas || '{}')
-              : {},
+          objetivos: normalizeJsonList(r.objetivos),
+          materiais: normalizeJsonList(r.materiais),
+          etapas: normalizeEtapas(r.etapas),
           linkMaterial: r.link_material || r.linkMaterial || '',
           autor: r.autor || 'CETEC',
           createdAt: r.created_at || r.createdAt,
