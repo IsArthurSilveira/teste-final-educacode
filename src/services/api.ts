@@ -222,7 +222,7 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
         // Busca clubes e informações agregadas
         const { data: clubes, error } = await supabase
           .from('clubes')
-          .select('*, alunos(count), encontros(status)')
+          .select('*, utec:utecs(nome), alunos(count), encontros(status)')
           .order('nome', { ascending: true });
 
         if (error) {
@@ -243,8 +243,9 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
             id: c.id,
             nome: String(c.nome || '').toUpperCase(),
             escola: String(c.escola || '').toUpperCase(),
-            utec: String(c.utec || '').toUpperCase(),
-            nomeUtec: c.nome_utec || c.utec,
+            id_utec: c.id_utec,
+            utec: String(c.id_utec || ''),
+            nomeUtec: c.utec?.nome || '',
             prof: String(c.prof || '').toUpperCase(),
             estag: String(c.estag || '').toUpperCase(),
             dias: String(c.dias || '').toUpperCase(),
@@ -535,11 +536,11 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
       case 'cadastrar_clube':
       case 'atualizar_clube': {
         const clubId = payload.id_clube || payload.id;
+        const idUtec = Number(payload.id_utec || payload.idUtec || payload.utec);
         const clubData = {
           nome: String(payload.nome || '').trim().toUpperCase(),
           escola: String(payload.escola || '').trim().toUpperCase(),
-          utec: String(payload.utec || '').trim().toUpperCase(),
-          nome_utec: String(payload.nomeUtec || payload.nome_utec || payload.utec || '').trim(),
+          id_utec: Number.isInteger(idUtec) && idUtec > 0 ? idUtec : null,
           prof: String(payload.prof || '').trim().toUpperCase(),
           estag: String(payload.estag || '').trim().toUpperCase(),
           dias: String(payload.dias || '').trim().toUpperCase(),
