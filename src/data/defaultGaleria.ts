@@ -8,6 +8,7 @@ export interface FotoGaleria {
   cargoAutor?: string;
   escola?: string;
   utec?: string;
+  id_utec?: string;
   clubeNome?: string;
   modulo?: string;
   dataEnvio: string;

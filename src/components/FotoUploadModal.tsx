@@ -7,6 +7,7 @@ export interface ClubeOption {
   nome: string;
   escola?: string;
   utec?: string;
+  id_utec?: string;
   nomeUtec?: string;
 }
 
@@ -37,6 +38,7 @@ export function FotoUploadModal({
   const [clubeNome, setClubeNome] = useState('');
   const [escola, setEscola] = useState('');
   const [utec, setUtec] = useState('');
+  const [idUtec, setIdUtec] = useState('');
   const [consentimento, setConsentimento] = useState(false);
   const [error, setError] = useState('');
 
@@ -47,10 +49,12 @@ export function FotoUploadModal({
       setClubeNome(found.nome);
       setEscola(found.escola || '');
       setUtec(found.nomeUtec || found.utec || '');
+      setIdUtec(String(found.utec || found.id_utec || '').trim());
     } else {
       setClubeNome('');
       setEscola('');
       setUtec('');
+      setIdUtec('');
     }
   }
 
@@ -110,12 +114,11 @@ export function FotoUploadModal({
       legenda: legenda.trim(),
       descricao: descricao.trim() || legenda.trim(),
       autor: currentUser.trim() || 'Educador Maker',
-      cargoAutor: 'Educador Maker',
       escola: escola.trim(),
       utec: utec.trim(),
+      id_utec: idUtec,
       clubeNome: clubeNome.trim() || escola.trim() || 'Clube de Robótica',
       dataEnvio: new Date().toISOString(),
-      curtidas: 1,
       consentimentoConfirmado: true,
     };
 
@@ -135,6 +138,7 @@ export function FotoUploadModal({
     setClubeNome('');
     setEscola('');
     setUtec('');
+    setIdUtec('');
     setConsentimento(false);
     onClose();
   }

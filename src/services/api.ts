@@ -403,6 +403,7 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
           autor: foto.autor || 'CETEC',
           cargoAutor: foto.cargo_autor || '',
           escola: foto.escola || '',
+          id_utec: foto.id_utec ? String(foto.id_utec) : '',
           utec: foto.utec?.nome || foto.id_utec || '',
           clubeNome: foto.clube_nome || '',
           modulo: foto.modulo || '',
@@ -603,13 +604,10 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
           legenda: String(foto.legenda || '').trim(),
           descricao: String(foto.descricao || '').trim(),
           autor: String(foto.autor || 'CETEC').trim(),
-          cargo_autor: String(foto.cargoAutor || foto.cargo_autor || '').trim(),
           escola: String(foto.escola || '').trim(),
-          id_utec: Number.isInteger(Number(foto.id_utec)) ? Number(foto.id_utec) : null,
+          id_utec: Number.isInteger(Number(foto.id_utec)) && Number(foto.id_utec) > 0 ? Number(foto.id_utec) : null,
           clube_nome: String(foto.clubeNome || foto.clube_nome || '').trim(),
-          modulo: String(foto.modulo || '').trim(),
           data_envio: foto.dataEnvio || foto.data_envio || new Date().toISOString(),
-          curtidas: Number(foto.curtidas || 0),
           consentimento_confirmado: Boolean(foto.consentimentoConfirmado ?? foto.consentimento_confirmado),
         };
 
