@@ -210,6 +210,39 @@ export async function logoutSession(): Promise<void> {
   clearSessionToken();
 }
 
+async function fetchAllRows(
+  table: string,
+  columns: string,
+  orderColumn: string,
+  filters?: Record<string, unknown>,
+): Promise<any[]> {
+  const pageSize = 1000;
+  const rows: any[] = [];
+
+  for (let from = 0; ; from += pageSize) {
+    let query = supabase
+      .from(table)
+      .select(columns)
+      .order(orderColumn, { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (filters) {
+      for (const [column, value] of Object.entries(filters)) {
+        query = query.eq(column, value);
+      }
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  return rows;
+}
+
 /**
  * Roteamento unificado das chamadas de leitura (GET) via Supabase
  */
@@ -220,15 +253,11 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
     switch (acao) {
       case 'listar_clubes': {
         // Busca clubes e informações agregadas
-        const { data: clubes, error } = await supabase
-          .from('clubes')
-          .select('*, utec:utecs(nome), alunos(count), encontros(status)')
-          .order('nome', { ascending: true });
-
-        if (error) {
-          handleSupabaseError(error);
-          return [] as unknown as TResponse;
-        }
+        const clubes = await fetchAllRows(
+          'clubes',
+          '*, utec:utecs(nome), alunos(count), encontros(status)',
+          'nome',
+        );
 
         const mapped = (clubes || []).map((c: any) => {
           const alunosCount = Array.isArray(c.alunos) ? Number(c.alunos[0]?.count ?? 0) : 0;
@@ -262,17 +291,12 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
 
       case 'listar_alunos': {
         const idClube = params?.id_clube || params?.idClube;
-        let query = supabase.from('alunos').select('*');
-
-        if (idClube) {
-          query = query.eq('id_clube', idClube);
-        }
-
-        const { data, error } = await query.order('nome', { ascending: true });
-        if (error) {
-          handleSupabaseError(error);
-          return [] as unknown as TResponse;
-        }
+        const data = await fetchAllRows(
+          'alunos',
+          '*',
+          'nome',
+          idClube ? { id_clube: idClube } : undefined,
+        );
 
         const mapped = (data || []).map((a: any) => ({
           id: a.id,
@@ -289,15 +313,7 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
       }
 
       case 'listar_alunos_detalhes': {
-        const { data, error } = await supabase
-          .from('alunos')
-          .select('*')
-          .order('nome', { ascending: true });
-
-        if (error) {
-          handleSupabaseError(error);
-          return [] as unknown as TResponse;
-        }
+        const data = await fetchAllRows('alunos', '*', 'nome');
 
         const mapped = (data || []).map((a: any) => ({
           id: a.id,
@@ -315,17 +331,12 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
 
       case 'listar_encontros': {
         const idClube = params?.id_clube || params?.idClube;
-        let query = supabase.from('encontros').select('*');
-
-        if (idClube) {
-          query = query.eq('id_clube', idClube);
-        }
-
-        const { data, error } = await query.order('data', { ascending: true });
-        if (error) {
-          handleSupabaseError(error);
-          return [] as unknown as TResponse;
-        }
+        const data = await fetchAllRows(
+          'encontros',
+          '*',
+          'data',
+          idClube ? { id_clube: idClube } : undefined,
+        );
 
         const mapped = (data || []).map((e: any) => ({
           id: e.id,
