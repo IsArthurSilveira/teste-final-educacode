@@ -388,6 +388,49 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
         return (data || []) as unknown as TResponse;
       }
 
+      case 'listar_clubes_competicao': {
+        let clubes: any[] = [];
+        try {
+          clubes = await fetchAllRows(
+            'clubes_competicao',
+            '*, utec:utecs(nome), competidores(*), encontros_competicao(*)',
+            'nome',
+          );
+        } catch {
+          clubes = await fetchAllRows('clubes_competicao', '*', 'nome');
+        }
+
+        return clubes.map((clube: any) => ({
+          id: String(clube.id),
+          nome: String(clube.nome || ''),
+          escola: String(clube.escola || ''),
+          utec: String(clube.utec?.nome || clube.utec || ''),
+          competicao: String(clube.competicao || 'Geral'),
+          nivel: String(clube.nivel || 'Nível 1 (Anos Iniciais)'),
+          prof: String(clube.prof || 'Não informado'),
+          tecnico: String(clube.tecnico || 'Não informado'),
+          dias: String(clube.dias || 'A definir'),
+          horario: String(clube.horario || 'A definir'),
+          status: String(clube.status || 'pendente'),
+          alunosList: (Array.isArray(clube.competidores) ? clube.competidores : []).map((aluno: any) => ({
+            id: String(aluno.id),
+            matricula: String(aluno.matricula || 'S/ MATRÍCULA'),
+            nome: String(aluno.nome || ''),
+            genero: aluno.genero === 'F' ? 'F' : 'M',
+            tamanhoCamisa: String(aluno.tamanho_camisa || 'M'),
+            dataRegistro: String(aluno.data_registro || ''),
+          })),
+          encontrosList: (Array.isArray(clube.encontros_competicao) ? clube.encontros_competicao : []).map((encontro: any) => ({
+            id: String(encontro.id),
+            data: String(encontro.data || ''),
+            assunto: String(encontro.assunto || ''),
+            detalhamento: String(encontro.detalhamento || ''),
+            quantidadeAlunos: String(encontro.quantidade_alunos || '0'),
+            status: String(encontro.status || 'pendente').toLowerCase() === 'concluido' ? 'concluido' : 'pendente',
+          })),
+        })) as unknown as TResponse;
+      }
+
       case 'listar_auditoria': {
         const { data, error } = await supabase
           .from('auditoria')
@@ -675,6 +718,137 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
 
         if (error) throw error;
         return { sucesso: true, mensagem: 'Status atualizado com sucesso.' } as unknown as TResponse;
+      }
+
+      case 'salvar_clube_competicao':
+      case 'cadastrar_clube_competicao':
+      case 'atualizar_clube_competicao': {
+        const clube = (payload.clube || payload) as any;
+        const clubeId = payload.id_clube || payload.id;
+        const utecName = String(clube.utec || payload.utec || '').trim();
+        let idUtec: number | null = null;
+
+        if (utecName) {
+          const { data: utec } = await supabase
+            .from('utecs')
+            .select('id')
+            .ilike('nome', utecName)
+            .maybeSingle();
+          if (utec?.id) idUtec = Number(utec.id);
+        }
+
+        const clubeDataRelation = {
+          nome: String(clube.nome || '').trim(),
+          escola: String(clube.escola || '').trim(),
+          id_utec: idUtec,
+          competicao: String(clube.competicao || 'Geral').trim(),
+          nivel: String(clube.nivel || 'Nível 1 (Anos Iniciais)').trim(),
+          prof: String(clube.prof || 'Não informado').trim(),
+          tecnico: String(clube.tecnico || 'Não informado').trim(),
+          dias: String(clube.dias || 'A definir').trim(),
+          horario: String(clube.horario || 'A definir').trim(),
+          status: String(clube.status || 'pendente').trim(),
+        };
+        const clubeDataText = {
+          nome: String(clube.nome || '').trim(),
+          escola: String(clube.escola || '').trim(),
+          utec: utecName,
+          competicao: String(clube.competicao || 'Geral').trim(),
+          nivel: String(clube.nivel || 'Nível 1 (Anos Iniciais)').trim(),
+          prof: String(clube.prof || 'Não informado').trim(),
+          tecnico: String(clube.tecnico || 'Não informado').trim(),
+          dias: String(clube.dias || 'A definir').trim(),
+          horario: String(clube.horario || 'A definir').trim(),
+          status: String(clube.status || 'pendente').trim(),
+        };
+
+        let savedId: unknown;
+        if (clubeId && String(clubeId).trim()) {
+          let result = await supabase
+            .from('clubes_competicao')
+            .update(clubeDataRelation)
+            .eq('id', clubeId)
+            .select('id')
+            .single();
+          if (result.error && (result.error.message?.includes('id_utec') || result.error.message?.includes('utec'))) {
+            result = await supabase
+              .from('clubes_competicao')
+              .update(clubeDataText)
+              .eq('id', clubeId)
+              .select('id')
+              .single();
+          }
+          const { data, error } = result;
+          if (error) throw error;
+          savedId = data?.id;
+        } else {
+          let result = await supabase
+            .from('clubes_competicao')
+            .insert(clubeDataRelation)
+            .select('id')
+            .single();
+          if (result.error && (result.error.message?.includes('id_utec') || result.error.message?.includes('utec'))) {
+            result = await supabase
+              .from('clubes_competicao')
+              .insert(clubeDataText)
+              .select('id')
+              .single();
+          }
+          const { data, error } = result;
+          if (error) throw error;
+          savedId = data?.id;
+        }
+
+        if (!savedId) throw new Error('Não foi possível obter o identificador do clube de competição.');
+
+        await supabase.from('competidores').delete().eq('id_clube_competicao', savedId);
+        await supabase.from('encontros_competicao').delete().eq('id_clube_competicao', savedId);
+
+        const alunos = Array.isArray(clube.alunosList) ? clube.alunosList : [];
+        if (alunos.length > 0) {
+          const { error } = await supabase.from('competidores').insert(
+            alunos.map((aluno: any) => ({
+              id_clube_competicao: savedId,
+              matricula: String(aluno.matricula || 'S/ MATRÍCULA'),
+              nome: String(aluno.nome || '').trim(),
+              genero: String(aluno.genero || 'M').toUpperCase() === 'F' ? 'F' : 'M',
+              tamanho_camisa: String(aluno.tamanhoCamisa || 'M'),
+              data_registro: String(aluno.dataRegistro || ''),
+            })),
+          );
+          if (error) throw error;
+        }
+
+        const encontros = Array.isArray(clube.encontrosList) ? clube.encontrosList : [];
+        if (encontros.length > 0) {
+          const { error } = await supabase.from('encontros_competicao').insert(
+            encontros.map((encontro: any) => ({
+              id_clube_competicao: savedId,
+              data: String(encontro.data || ''),
+              assunto: String(encontro.assunto || ''),
+              detalhamento: String(encontro.detalhamento || ''),
+              quantidade_alunos: String(encontro.quantidadeAlunos || '0'),
+              status: String(encontro.status || 'pendente').toLowerCase() === 'concluido' ? 'concluido' : 'pendente',
+            })),
+          );
+          if (error) throw error;
+        }
+
+        return { sucesso: true, id: savedId, mensagem: 'Clube de competição salvo com sucesso.' } as unknown as TResponse;
+      }
+
+      case 'excluir_clube_competicao':
+      case 'remover_clube_competicao': {
+        const clubeId = payload.id_clube || payload.id;
+        if (!clubeId) {
+          return { sucesso: false, erro: 'Identificador do clube de competição inválido.' } as unknown as TResponse;
+        }
+        const { error } = await supabase
+          .from('clubes_competicao')
+          .delete()
+          .eq('id', clubeId);
+        if (error) throw error;
+        return { sucesso: true, mensagem: 'Clube de competição excluído com sucesso.' } as unknown as TResponse;
       }
 
       case 'excluir_clube':

@@ -1,5 +1,5 @@
 import { supabase, testSupabaseConnection } from './supabase';
-import { getStoredClubesCompeticao, clearStoredClubesCompeticao } from '../data/defaultClubesCompeticao';
+import { clearStoredClubesCompeticao } from '../data/defaultClubesCompeticao';
 import type { ClubeCompeticao } from '../data/defaultClubesCompeticao';
 import { getStoredProjetosFicFecom, clearStoredProjetosFicFecom } from '../data/defaultProjetosFicFecom';
 import type { ProjetoFicFecom } from '../data/defaultProjetosFicFecom';
@@ -84,8 +84,59 @@ export async function fetchFullDatabaseDump(): Promise<FullDatabaseDump> {
     console.warn('Erro ao carregar roteiros no dump:', err);
   }
 
-  // 6. Clubes de Competição (armazenados)
-  const clubesCompeticao = getStoredClubesCompeticao();
+  // 6. Clubes de Competição
+  let clubesCompeticao: ClubeCompeticao[] = [];
+  try {
+    const { data: clubesComp } = await supabase
+      .from('clubes_competicao')
+      .select('*, utec:utecs(nome)')
+      .order('nome', { ascending: true });
+
+    if (clubesComp) {
+      clubesCompeticao = await Promise.all(clubesComp.map(async (clube: any) => {
+        const { data: competidores } = await supabase
+          .from('competidores')
+          .select('*')
+          .eq('id_clube_competicao', clube.id);
+        const { data: encontros } = await supabase
+          .from('encontros_competicao')
+          .select('*')
+          .eq('id_clube_competicao', clube.id);
+
+        return {
+          id: String(clube.id),
+          nome: String(clube.nome || ''),
+          escola: String(clube.escola || ''),
+          utec: String(clube.utec?.nome || clube.utec || ''),
+          competicao: String(clube.competicao || 'Geral'),
+          nivel: String(clube.nivel || 'Nível 1 (Anos Iniciais)'),
+          prof: String(clube.prof || 'Não informado'),
+          tecnico: String(clube.tecnico || 'Não informado'),
+          dias: String(clube.dias || 'A definir'),
+          horario: String(clube.horario || 'A definir'),
+          status: String(clube.status || 'pendente'),
+          alunosList: (competidores || []).map((aluno: any) => ({
+            id: String(aluno.id),
+            matricula: String(aluno.matricula || 'S/ MATRÍCULA'),
+            nome: String(aluno.nome || ''),
+            genero: aluno.genero === 'F' ? 'F' : 'M',
+            tamanhoCamisa: String(aluno.tamanho_camisa || 'M'),
+            dataRegistro: String(aluno.data_registro || ''),
+          })),
+          encontrosList: (encontros || []).map((encontro: any) => ({
+            id: String(encontro.id),
+            data: String(encontro.data || ''),
+            assunto: String(encontro.assunto || ''),
+            detalhamento: String(encontro.detalhamento || ''),
+            quantidadeAlunos: String(encontro.quantidade_alunos || '0'),
+            status: String(encontro.status || 'pendente').toLowerCase() === 'concluido' ? 'concluido' : 'pendente',
+          })),
+        } as ClubeCompeticao;
+      }));
+    }
+  } catch (err) {
+    console.warn('Erro ao carregar clubes de competição no dump:', err);
+  }
 
   // 7. Projetos FIC & FECOM (armazenados)
   const projetosFicFecom = getStoredProjetosFicFecom();

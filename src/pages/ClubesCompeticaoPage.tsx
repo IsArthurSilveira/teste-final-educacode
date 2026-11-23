@@ -1,14 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppSidebar } from '../components/AppSidebar';
 import { ClubeCompeticaoModal } from '../components/ClubeCompeticaoModal';
 import { BaseModal } from '../components/ui/BaseModal';
-import {
-  deleteClubeCompeticao,
-  getStoredClubesCompeticao,
-  saveClubeCompeticao,
-} from '../data/defaultClubesCompeticao';
 import type { AlunoCompeticao, ClubeCompeticao, EncontroCompeticao } from '../data/defaultClubesCompeticao';
 import { isAnyAdmin } from '../utils/permissions';
+import { apiGet, apiPost } from '../services/api';
 
 interface ClubesCompeticaoPageProps {
   userName: string;
@@ -45,7 +41,7 @@ export function ClubesCompeticaoPage({
   onOpenAdminUsers,
   utecOptions = [],
 }: ClubesCompeticaoPageProps) {
-  const [clubes, setClubes] = useState<ClubeCompeticao[]>(() => getStoredClubesCompeticao());
+  const [clubes, setClubes] = useState<ClubeCompeticao[]>([]);
   const [search, setSearch] = useState('');
   const [quickFilter, setQuickFilter] = useState('all');
   const [competicaoFilter, setCompeticaoFilter] = useState('all');
@@ -55,6 +51,32 @@ export function ClubesCompeticaoPage({
 
   // Estado para detalhe do clube selecionado (estilo ClubDetailPage)
   const [selectedClubId, setSelectedClubId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadClubes() {
+      setLoading(true);
+      setActionError('');
+      try {
+        const response = await apiGet<unknown>({ acao: 'listar_clubes_competicao', _t: Date.now() });
+        if (!cancelled) {
+          setClubes(Array.isArray(response) ? response as ClubeCompeticao[] : []);
+        }
+      } catch {
+        if (!cancelled) setActionError('Não foi possível carregar os clubes de competição.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadClubes();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Modais de Aluno e Aula/Encontro
   const [showAlunoModal, setShowAlunoModal] = useState(false);
@@ -400,9 +422,19 @@ export function ClubesCompeticaoPage({
   const [clubeToDelete, setClubeToDelete] = useState<ClubeCompeticao | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
-  function handleSave(clube: ClubeCompeticao) {
-    const updated = saveClubeCompeticao(clube);
-    setClubes(updated);
+  async function handleSave(clube: ClubeCompeticao) {
+    setActionError('');
+    const response = await apiPost<{ sucesso?: boolean; erro?: string }>({
+      acao: 'salvar_clube_competicao',
+      id_clube: /^comp-\d+$/.test(clube.id) ? undefined : clube.id,
+      clube,
+    });
+    if (!response?.sucesso) {
+      setActionError(response?.erro || 'Não foi possível salvar o clube de competição.');
+      return;
+    }
+    const reloaded = await apiGet<unknown>({ acao: 'listar_clubes_competicao', _t: Date.now() });
+    setClubes(Array.isArray(reloaded) ? reloaded as ClubeCompeticao[] : []);
     setEditingClube(null);
   }
 
@@ -411,10 +443,19 @@ export function ClubesCompeticaoPage({
     setDeleteModalOpen(true);
   }
 
-  function handleConfirmDeleteClube() {
+  async function handleConfirmDeleteClube() {
     if (!clubeToDelete) return;
-    const updated = deleteClubeCompeticao(clubeToDelete.id);
-    setClubes(updated);
+    setActionError('');
+    const response = await apiPost<{ sucesso?: boolean; erro?: string }>({
+      acao: 'remover_clube_competicao',
+      id: clubeToDelete.id,
+    });
+    if (!response?.sucesso) {
+      setActionError(response?.erro || 'Não foi possível excluir o clube de competição.');
+      return;
+    }
+    const reloaded = await apiGet<unknown>({ acao: 'listar_clubes_competicao', _t: Date.now() });
+    setClubes(Array.isArray(reloaded) ? reloaded as ClubeCompeticao[] : []);
     if (selectedClubId === clubeToDelete.id) setSelectedClubId(null);
     setDeleteModalOpen(false);
     setClubeToDelete(null);
@@ -1083,8 +1124,20 @@ export function ClubesCompeticaoPage({
                 </div>
               </div>
 
+              {actionError && (
+                <div className="p-3 rounded-xl border border-red-200 bg-red-50 text-xs font-bold text-red-700">
+                  {actionError}
+                </div>
+              )}
+
+              {loading && (
+                <div className="p-6 text-center text-xs font-bold text-gray-500">
+                  Carregando clubes de competição...
+                </div>
+              )}
+
               {/* Grid de Cards - Padrão do Painel de Clubes */}
-              {filteredClubes.length === 0 ? (
+              {!loading && filteredClubes.length === 0 ? (
                 <div className="p-12 text-center bg-white rounded-3xl border-2 border-dashed border-gray-200 space-y-2">
                   <span className="material-symbols-rounded text-5xl text-yellow-500/60">groups</span>
                   <h3 className="text-base font-bold text-gray-700">Nenhum clube de competição encontrado</h3>
