@@ -816,6 +816,23 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
         return { sucesso: true, mensagem: 'Encontro removido com sucesso.' } as unknown as TResponse;
       }
 
+      case 'atualizar_status_encontro': {
+        const encontroId = payload.id_encontro || payload.id;
+        const status = String(payload.status || 'A FAZER').trim().toUpperCase();
+
+        if (!encontroId) {
+          return { sucesso: false, erro: 'Identificador do encontro ausente.' } as unknown as TResponse;
+        }
+
+        const { error } = await supabase
+          .from('encontros')
+          .update({ status })
+          .eq('id', encontroId);
+
+        if (error) throw error;
+        return { sucesso: true, mensagem: 'Status do encontro atualizado com sucesso.' } as unknown as TResponse;
+      }
+
       case 'salvar_usuario':
       case 'cadastrar_usuario': {
         const userId = payload.id || payload.id_usuario;

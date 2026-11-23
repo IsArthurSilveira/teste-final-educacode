@@ -265,16 +265,24 @@ export function ClubDetailPage({ userName, userRole, allowAdminTools = false, al
     }
 
     setEncontroLoadingMap((curr) => ({ ...curr, [encontro.id]: true }));
-    const novoStatus = String(encontro.status || '').toUpperCase() === 'FEITO' ? 'A FAZER' : 'FEITO';
+    setActionError('');
+    const statusAtual = String(encontro.status || '').toUpperCase().trim();
+    const novoStatus = statusAtual === 'FEITO' || statusAtual === 'CONCLUÍDO' || statusAtual === 'CONCLUIDO'
+      ? 'A FAZER'
+      : 'FEITO';
     try {
       const payload = { acao: 'atualizar_status_encontro', id_encontro: encontro.id, status: novoStatus };
       console.log('toggleEncontroStatus -> payload:', payload);
       const response = await onUpdateStatus(payload);
       console.log('toggleEncontroStatus <- response:', response);
-      if (response?.sucesso) await refreshDetails();
+      if (response?.sucesso) {
+        await refreshDetails();
+      } else {
+        setActionError(getErrorMessage(response, 'Não foi possível atualizar o status do encontro.'));
+      }
     } catch (err) {
       console.error('toggleEncontroStatus error', err);
-      throw err;
+      setActionError('Não foi possível atualizar o status do encontro.');
     } finally {
       setEncontroLoadingMap((curr) => ({ ...curr, [encontro.id]: false }));
     }
@@ -1014,12 +1022,16 @@ function ModuloSection({
                   className={`text-[10px] font-black px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer ${
                     encontroLoadingMap?.[enc.id]
                       ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-wait'
-                      : String(enc.status || '').toUpperCase() === 'FEITO'
+                      : ['FEITO', 'CONCLUÍDO', 'CONCLUIDO'].includes(String(enc.status || '').toUpperCase().trim())
                       ? 'bg-emerald-100 text-emerald-900 border-emerald-300 hover:bg-emerald-200'
                       : 'bg-rose-100 text-rose-900 border-rose-300 hover:bg-rose-200'
                   }`}
                 >
-                  {encontroLoadingMap?.[enc.id] ? '...' : String(enc.status || '').toUpperCase() === 'FEITO' ? 'FEITO' : 'A FAZER'}
+                  {encontroLoadingMap?.[enc.id]
+                    ? '...'
+                    : ['FEITO', 'CONCLUÍDO', 'CONCLUIDO'].includes(String(enc.status || '').toUpperCase().trim())
+                      ? 'FEITO'
+                      : 'A FAZER'}
                 </button>
               )}
               {onCanEdit && (
