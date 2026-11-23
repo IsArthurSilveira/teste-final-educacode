@@ -4,6 +4,28 @@ import type { ClubeCompeticao } from '../data/defaultClubesCompeticao';
 import { getStoredProjetosFicFecom, clearStoredProjetosFicFecom } from '../data/defaultProjetosFicFecom';
 import type { ProjetoFicFecom } from '../data/defaultProjetosFicFecom';
 
+function normalizeCompetitionStatus(value: unknown): ClubeCompeticao['status'] {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+  if (normalized.includes('conclu') || normalized === 'feito') return 'concluido';
+  if (normalized.includes('andamento')) return 'em_andamento';
+  return 'pendente';
+}
+
+function normalizeCompetitionMeetingStatus(value: unknown): 'pendente' | 'concluido' {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+  return normalized.includes('conclu') || normalized === 'feito' ? 'concluido' : 'pendente';
+}
+
 export interface DatabaseSummaryStats {
   totalClubes: number;
   totalAlunos: number;
@@ -114,7 +136,7 @@ export async function fetchFullDatabaseDump(): Promise<FullDatabaseDump> {
           tecnico: String(clube.tecnico || 'Não informado'),
           dias: String(clube.dias || 'A definir'),
           horario: String(clube.horario || 'A definir'),
-          status: String(clube.status || 'pendente'),
+          status: normalizeCompetitionStatus(clube.status),
           alunosList: (competidores || []).map((aluno: any) => ({
             id: String(aluno.id),
             matricula: String(aluno.matricula || 'S/ MATRÍCULA'),
@@ -129,7 +151,7 @@ export async function fetchFullDatabaseDump(): Promise<FullDatabaseDump> {
             assunto: String(encontro.assunto || ''),
             detalhamento: String(encontro.detalhamento || ''),
             quantidadeAlunos: String(encontro.quantidade_alunos || '0'),
-            status: String(encontro.status || 'pendente').toLowerCase() === 'concluido' ? 'concluido' : 'pendente',
+            status: normalizeCompetitionMeetingStatus(encontro.status),
           })),
         } as ClubeCompeticao;
       }));

@@ -243,6 +243,28 @@ async function fetchAllRows(
   return rows;
 }
 
+function normalizeCompetitionStatus(value: unknown): 'pendente' | 'em_andamento' | 'concluido' {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+  if (normalized.includes('conclu') || normalized === 'feito') return 'concluido';
+  if (normalized.includes('andamento')) return 'em_andamento';
+  return 'pendente';
+}
+
+function normalizeCompetitionMeetingStatus(value: unknown): 'pendente' | 'concluido' {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
+  return normalized.includes('conclu') || normalized === 'feito' ? 'concluido' : 'pendente';
+}
+
 /**
  * Roteamento unificado das chamadas de leitura (GET) via Supabase
  */
@@ -411,7 +433,7 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
           tecnico: String(clube.tecnico || 'Não informado'),
           dias: String(clube.dias || 'A definir'),
           horario: String(clube.horario || 'A definir'),
-          status: String(clube.status || 'pendente'),
+          status: normalizeCompetitionStatus(clube.status),
           alunosList: (Array.isArray(clube.competidores) ? clube.competidores : []).map((aluno: any) => ({
             id: String(aluno.id),
             matricula: String(aluno.matricula || 'S/ MATRÍCULA'),
@@ -426,7 +448,7 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
             assunto: String(encontro.assunto || ''),
             detalhamento: String(encontro.detalhamento || ''),
             quantidadeAlunos: String(encontro.quantidade_alunos || '0'),
-            status: String(encontro.status || 'pendente').toLowerCase() === 'concluido' ? 'concluido' : 'pendente',
+            status: normalizeCompetitionMeetingStatus(encontro.status),
           })),
         })) as unknown as TResponse;
       }
@@ -747,7 +769,7 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
           tecnico: String(clube.tecnico || 'Não informado').trim(),
           dias: String(clube.dias || 'A definir').trim(),
           horario: String(clube.horario || 'A definir').trim(),
-          status: String(clube.status || 'pendente').trim(),
+          status: normalizeCompetitionStatus(clube.status),
         };
         const clubeDataText = {
           nome: String(clube.nome || '').trim(),
@@ -828,7 +850,7 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
               assunto: String(encontro.assunto || ''),
               detalhamento: String(encontro.detalhamento || ''),
               quantidade_alunos: String(encontro.quantidadeAlunos || '0'),
-              status: String(encontro.status || 'pendente').toLowerCase() === 'concluido' ? 'concluido' : 'pendente',
+              status: normalizeCompetitionMeetingStatus(encontro.status),
             })),
           );
           if (error) throw error;
