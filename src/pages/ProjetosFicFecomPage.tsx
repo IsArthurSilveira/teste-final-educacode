@@ -1,14 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppSidebar } from '../components/AppSidebar';
 import { BaseModal } from '../components/ui/BaseModal';
 import { ProjetoFicFecomModal } from '../components/ProjetoFicFecomModal';
-import {
-  deleteProjetoFicFecom,
-  getStoredProjetosFicFecom,
-  saveProjetoFicFecom,
-} from '../data/defaultProjetosFicFecom';
 import type { ProjetoFicFecom } from '../data/defaultProjetosFicFecom';
-import { isAnyAdmin } from '../utils/permissions';
+import { isAnyAdmin, normalizeUtecScope } from '../utils/permissions';
+import { apiGet, apiPost } from '../services/api';
 
 interface ProjetosFicFecomPageProps {
   userName: string;
@@ -27,6 +23,8 @@ interface ProjetosFicFecomPageProps {
   onOpenAdminDeleteClubs?: () => void;
   onOpenAdminUsers?: () => void;
   utecOptions?: Array<{ value: string; label: string }>;
+  utecScope?: string;
+  canViewAllUtecs?: boolean;
 }
 
 export function ProjetosFicFecomPage({
@@ -44,8 +42,34 @@ export function ProjetosFicFecomPage({
   onOpenDatabaseControl,
   onOpenAdminUsers,
   utecOptions = [],
+  utecScope = '',
+  canViewAllUtecs = false,
 }: ProjetosFicFecomPageProps) {
-  const [projetos, setProjetos] = useState<ProjetoFicFecom[]>(() => getStoredProjetosFicFecom());
+  const [projetos, setProjetos] = useState<ProjetoFicFecom[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProjetos() {
+      setLoading(true);
+      setActionError('');
+      try {
+        const response = await apiGet<unknown>({ acao: 'listar_projetos_fic_fecom', _t: Date.now() });
+        if (!cancelled) setProjetos(Array.isArray(response) ? response as ProjetoFicFecom[] : []);
+      } catch {
+        if (!cancelled) setActionError('Não foi possível carregar os projetos FIC/FECOM.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadProjetos();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [search, setSearch] = useState('');
   const [quickFilter, setQuickFilter] = useState('all');
   const [modalidadeFilter, setModalidadeFilter] = useState('all');
@@ -74,7 +98,28 @@ export function ProjetosFicFecomPage({
 
   // Filtragem e ordenação por UTEC (A-Z)
   const filteredProjetos = useMemo(() => {
-    return projetos
+    const scopeKey = normalizeUtecScope(utecScope);
+    const scopeOption = utecOptions.find((option) =>
+      normalizeUtecScope(option.value) === scopeKey ||
+      normalizeUtecScope(option.label) === scopeKey
+    );
+    const allowedUtecKeys = new Set([
+      scopeKey,
+      normalizeUtecScope(scopeOption?.value),
+      normalizeUtecScope(scopeOption?.label),
+    ].filter(Boolean));
+
+    const scopedProjetos = canViewAllUtecs || !scopeKey
+      ? projetos
+      : projetos.filter((projeto) => {
+          const projectUtecKeys = [
+            normalizeUtecScope(projeto.idUtec),
+            normalizeUtecScope(projeto.utec),
+          ];
+          return projectUtecKeys.some((key) => allowedUtecKeys.has(key));
+        });
+
+    return scopedProjetos
       .filter((proj) => {
         // Filtro rápido de chips
         if (quickFilter !== 'all') {
@@ -138,7 +183,7 @@ export function ProjetosFicFecomPage({
         }
         return utecA.localeCompare(utecB, 'pt-BR');
       });
-  }, [projetos, normalizedSearch, quickFilter, modalidadeFilter, statusFilter, recursoFilter]);
+  }, [projetos, normalizedSearch, quickFilter, modalidadeFilter, statusFilter, recursoFilter, utecScope, canViewAllUtecs, utecOptions]);
 
   // Indicadores rápidos DINÂMICOS baseados nos filtros
   const totalProjetos = filteredProjetos.length;
@@ -147,9 +192,19 @@ export function ProjetosFicFecomPage({
   const totalAlunos = filteredProjetos.reduce((acc, p) => acc + (p.integrantesList?.length || 0), 0);
   const totalAtivos = filteredProjetos.filter((p) => p.status === 'em_andamento').length;
 
-  function handleSave(projeto: ProjetoFicFecom) {
-    const updated = saveProjetoFicFecom(projeto);
-    setProjetos(updated);
+  async function handleSave(projeto: ProjetoFicFecom) {
+    setActionError('');
+    const response = await apiPost<{ sucesso?: boolean; erro?: string }>({
+      acao: 'salvar_projeto_fic_fecom',
+      id_projeto: /^proj-\d+$/.test(projeto.id) ? undefined : projeto.id,
+      projeto,
+    });
+    if (!response?.sucesso) {
+      setActionError(response?.erro || 'Não foi possível salvar o projeto.');
+      return;
+    }
+    const reloaded = await apiGet<unknown>({ acao: 'listar_projetos_fic_fecom', _t: Date.now() });
+    setProjetos(Array.isArray(reloaded) ? reloaded as ProjetoFicFecom[] : []);
     setEditingProjeto(null);
   }
 
@@ -158,10 +213,19 @@ export function ProjetosFicFecomPage({
     setDeleteModalOpen(true);
   }
 
-  function handleConfirmDeleteProjeto() {
+  async function handleConfirmDeleteProjeto() {
     if (!projetoToDelete) return;
-    const updated = deleteProjetoFicFecom(projetoToDelete.id);
-    setProjetos(updated);
+    setActionError('');
+    const response = await apiPost<{ sucesso?: boolean; erro?: string }>({
+      acao: 'remover_projeto_fic_fecom',
+      id: projetoToDelete.id,
+    });
+    if (!response?.sucesso) {
+      setActionError(response?.erro || 'Não foi possível excluir o projeto.');
+      return;
+    }
+    const reloaded = await apiGet<unknown>({ acao: 'listar_projetos_fic_fecom', _t: Date.now() });
+    setProjetos(Array.isArray(reloaded) ? reloaded as ProjetoFicFecom[] : []);
     if (selectedProjetoId === projetoToDelete.id) {
       setSelectedProjetoId(null);
     }
@@ -1002,8 +1066,20 @@ export function ProjetosFicFecomPage({
                 </div>
               </div>
 
+              {actionError && (
+                <div className="p-3 rounded-xl border border-red-200 bg-red-50 text-xs font-bold text-red-700">
+                  {actionError}
+                </div>
+              )}
+
+              {loading && (
+                <div className="p-6 text-center text-xs font-bold text-gray-500">
+                  Carregando projetos FIC/FECOM...
+                </div>
+              )}
+
               {/* Grid de Cards dos Projetos */}
-              {filteredProjetos.length === 0 ? (
+              {!loading && filteredProjetos.length === 0 ? (
                 <div className="p-12 text-center bg-white rounded-3xl border-2 border-dashed border-gray-200 space-y-2">
                   <span className="material-symbols-rounded text-5xl text-blue-500/60">science</span>
                   <h3 className="text-base font-bold text-gray-700">Nenhum projeto encontrado</h3>

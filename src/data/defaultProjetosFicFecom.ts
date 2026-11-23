@@ -16,6 +16,7 @@ export interface ProjetoFicFecom {
   modalidade: ModalidadeProjeto;
   escola: string;
   utec: string;
+  idUtec?: string;
   professor?: string;
   estagiario?: string;
   status: 'pendente' | 'em_andamento' | 'concluido';

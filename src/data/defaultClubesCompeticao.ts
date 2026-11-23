@@ -21,6 +21,7 @@ export interface ClubeCompeticao {
   nome: string;
   escola: string;
   utec: string;
+  idUtec?: string;
   competicao: 'FLL' | 'OBR' | 'RECLINE' | 'Geral';
   nivel: 'Nível 1 (Anos Iniciais)' | 'Nível 2 (Anos Finais)';
   prof: string;

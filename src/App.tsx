@@ -531,6 +531,8 @@ function AppRoutes() {
               onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
               onOpenAdminUsers={() => navigate('/admin/usuarios')}
               utecOptions={utecOptions as never[]}
+              utecScope={resolvedUtecScope}
+              canViewAllUtecs={userCanSeeAllUtecs}
             />
           )}
         />
@@ -554,6 +556,8 @@ function AppRoutes() {
               onOpenAdminDeleteClubs={() => navigate('/admin/excluir-clubes')}
               onOpenAdminUsers={() => navigate('/admin/usuarios')}
               utecOptions={utecOptions as never[]}
+              utecScope={resolvedUtecScope}
+              canViewAllUtecs={userCanSeeAllUtecs}
             />
           )}
         />

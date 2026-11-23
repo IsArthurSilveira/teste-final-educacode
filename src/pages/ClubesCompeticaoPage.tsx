@@ -5,6 +5,7 @@ import { BaseModal } from '../components/ui/BaseModal';
 import type { AlunoCompeticao, ClubeCompeticao, EncontroCompeticao } from '../data/defaultClubesCompeticao';
 import { isAnyAdmin } from '../utils/permissions';
 import { apiGet, apiPost } from '../services/api';
+import { normalizeUtecScope } from '../utils/permissions';
 
 interface ClubesCompeticaoPageProps {
   userName: string;
@@ -23,6 +24,8 @@ interface ClubesCompeticaoPageProps {
   onOpenAdminDeleteClubs?: () => void;
   onOpenAdminUsers?: () => void;
   utecOptions?: Array<{ value: string; label: string }>;
+  utecScope?: string;
+  canViewAllUtecs?: boolean;
 }
 
 export function ClubesCompeticaoPage({
@@ -40,6 +43,8 @@ export function ClubesCompeticaoPage({
   onOpenDatabaseControl,
   onOpenAdminUsers,
   utecOptions = [],
+  utecScope = '',
+  canViewAllUtecs = false,
 }: ClubesCompeticaoPageProps) {
   const [clubes, setClubes] = useState<ClubeCompeticao[]>([]);
   const [search, setSearch] = useState('');
@@ -113,7 +118,28 @@ export function ClubesCompeticaoPage({
 
   // Clubes filtrados organizados por UTEC em ordem alfabética (A-Z)
   const filteredClubes = useMemo(() => {
-    return clubes
+    const scopeKey = normalizeUtecScope(utecScope);
+    const scopeOption = utecOptions.find((option) =>
+      normalizeUtecScope(option.value) === scopeKey ||
+      normalizeUtecScope(option.label) === scopeKey
+    );
+    const allowedUtecKeys = new Set([
+      scopeKey,
+      normalizeUtecScope(scopeOption?.value),
+      normalizeUtecScope(scopeOption?.label),
+    ].filter(Boolean));
+
+    const scopedClubes = canViewAllUtecs || !scopeKey
+      ? clubes
+      : clubes.filter((clube) => {
+          const clubUtecKeys = [
+            normalizeUtecScope(clube.idUtec),
+            normalizeUtecScope(clube.utec),
+          ];
+          return clubUtecKeys.some((key) => allowedUtecKeys.has(key));
+        });
+
+    return scopedClubes
       .filter((clube) => {
         // Filtro rápido de chips
         if (quickFilter !== 'all') {
@@ -169,7 +195,7 @@ export function ClubesCompeticaoPage({
         }
         return utecA.localeCompare(utecB, 'pt-BR');
       });
-  }, [clubes, normalizedSearch, quickFilter, competicaoFilter, statusFilter]);
+  }, [clubes, normalizedSearch, quickFilter, competicaoFilter, statusFilter, utecScope, canViewAllUtecs, utecOptions]);
 
   // Indicadores rápidos DINÂMICOS baseados nos filtros ativos
   const totalEquipes = filteredClubes.length;

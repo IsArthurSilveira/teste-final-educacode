@@ -410,6 +410,45 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
         return (data || []) as unknown as TResponse;
       }
 
+      case 'listar_projetos_fic_fecom': {
+        const projetos = await fetchAllRows(
+          'projetos_fic_fecom',
+          '*, utec:utecs(nome), integrantes_projeto(*)',
+          'titulo',
+        );
+
+        return projetos.map((projeto: any) => ({
+          id: String(projeto.id),
+          titulo: String(projeto.titulo || ''),
+          modalidade: projeto.modalidade === 'FECOM' ? 'FECOM' : 'FIC',
+          escola: String(projeto.escola || ''),
+          utec: String(projeto.utec?.nome || projeto.utec || ''),
+          idUtec: String(projeto.id_utec || ''),
+          professor: String(projeto.professor || 'A definir'),
+          estagiario: String(projeto.estagiario || ''),
+          status: normalizeCompetitionStatus(projeto.status),
+          dataCadastro: String(projeto.data_cadastro || ''),
+          integrantesList: (Array.isArray(projeto.integrantes_projeto) ? projeto.integrantes_projeto : []).map((integrante: any) => ({
+            id: String(integrante.id),
+            nome: String(integrante.nome || ''),
+            matricula: String(integrante.matricula || ''),
+            anoEscolar: String(integrante.ano_escolar || ''),
+            genero: integrante.genero === 'F' ? 'F' : 'M',
+            tamanhoCamisa: String(integrante.tamanho_camisa || 'M'),
+          })),
+          justificativaTematica: String(projeto.justificativa_tematica || ''),
+          processoConstrucao: String(projeto.processo_construcao || ''),
+          pensarBrincando: String(projeto.pensar_brincando || ''),
+          linguagensUsadas: Array.isArray(projeto.linguagens_usadas) ? projeto.linguagens_usadas : [],
+          propositoColetivo: String(projeto.proposito_coletivo || ''),
+          recursosRobotica: Array.isArray(projeto.recursos_robotica) ? projeto.recursos_robotica : [],
+          recursosOutroDescricao: String(projeto.recursos_outro_descricao || ''),
+          conteudosEscolares: String(projeto.conteudos_escolares || ''),
+          competenciasBncc: String(projeto.competencias_bncc || ''),
+          habilidadesBncc: String(projeto.habilidades_bncc || ''),
+        })) as unknown as TResponse;
+      }
+
       case 'listar_clubes_competicao': {
         let clubes: any[] = [];
         try {
@@ -427,6 +466,7 @@ export async function apiGet<TResponse = unknown>(params: ApiRequestPayload): Pr
           nome: String(clube.nome || ''),
           escola: String(clube.escola || ''),
           utec: String(clube.utec?.nome || clube.utec || ''),
+          idUtec: String(clube.id_utec || ''),
           competicao: String(clube.competicao || 'Geral'),
           nivel: String(clube.nivel || 'Nível 1 (Anos Iniciais)'),
           prof: String(clube.prof || 'Não informado'),
@@ -871,6 +911,100 @@ export async function apiPost<TResponse = ApiBaseResponse>(payload: ApiRequestPa
           .eq('id', clubeId);
         if (error) throw error;
         return { sucesso: true, mensagem: 'Clube de competição excluído com sucesso.' } as unknown as TResponse;
+      }
+
+      case 'salvar_projeto_fic_fecom':
+      case 'cadastrar_projeto_fic_fecom':
+      case 'atualizar_projeto_fic_fecom': {
+        const projeto = (payload.projeto || payload) as any;
+        const projetoId = payload.id_projeto || payload.id;
+        const utecName = String(projeto.utec || payload.utec || '').trim();
+        let idUtec: number | null = null;
+
+        if (utecName) {
+          const { data: utec } = await supabase
+            .from('utecs')
+            .select('id')
+            .ilike('nome', utecName)
+            .maybeSingle();
+          if (utec?.id) idUtec = Number(utec.id);
+        }
+
+        const projetoData = {
+          titulo: String(projeto.titulo || '').trim(),
+          modalidade: projeto.modalidade === 'FECOM' ? 'FECOM' : 'FIC',
+          escola: String(projeto.escola || '').trim(),
+          id_utec: idUtec,
+          professor: String(projeto.professor || 'A definir').trim(),
+          estagiario: String(projeto.estagiario || '').trim(),
+          status: normalizeCompetitionStatus(projeto.status),
+          data_cadastro: String(projeto.dataCadastro || projeto.data_cadastro || '').trim(),
+          justificativa_tematica: String(projeto.justificativaTematica || projeto.justificativa_tematica || '').trim(),
+          processo_construcao: String(projeto.processoConstrucao || projeto.processo_construcao || '').trim(),
+          pensar_brincando: String(projeto.pensarBrincando || projeto.pensar_brincando || '').trim(),
+          linguagens_usadas: Array.isArray(projeto.linguagensUsadas) ? projeto.linguagensUsadas : [],
+          proposito_coletivo: String(projeto.propositoColetivo || projeto.proposito_coletivo || '').trim(),
+          recursos_robotica: Array.isArray(projeto.recursosRobotica) ? projeto.recursosRobotica : [],
+          recursos_outro_descricao: String(projeto.recursosOutroDescricao || projeto.recursos_outro_descricao || '').trim(),
+          conteudos_escolares: String(projeto.conteudosEscolares || projeto.conteudos_escolares || '').trim(),
+          competencias_bncc: String(projeto.competenciasBncc || projeto.competencias_bncc || '').trim(),
+          habilidades_bncc: String(projeto.habilidadesBncc || projeto.habilidades_bncc || '').trim(),
+        };
+
+        let savedId: unknown;
+        if (projetoId && !/^proj-\d+$/.test(String(projetoId))) {
+          const { data, error } = await supabase
+            .from('projetos_fic_fecom')
+            .update(projetoData)
+            .eq('id', projetoId)
+            .select('id')
+            .single();
+          if (error) throw error;
+          savedId = data?.id;
+        } else {
+          const { data, error } = await supabase
+            .from('projetos_fic_fecom')
+            .insert(projetoData)
+            .select('id')
+            .single();
+          if (error) throw error;
+          savedId = data?.id;
+        }
+
+        if (!savedId) throw new Error('Não foi possível obter o identificador do projeto.');
+
+        await supabase.from('integrantes_projeto').delete().eq('id_projeto', savedId);
+
+        const integrantes = Array.isArray(projeto.integrantesList) ? projeto.integrantesList : [];
+        if (integrantes.length > 0) {
+          const { error } = await supabase.from('integrantes_projeto').insert(
+            integrantes.map((integrante: any) => ({
+              id_projeto: savedId,
+              nome: String(integrante.nome || '').trim(),
+              matricula: String(integrante.matricula || ''),
+              ano_escolar: String(integrante.anoEscolar || ''),
+              genero: integrante.genero === 'F' ? 'F' : 'M',
+              tamanho_camisa: String(integrante.tamanhoCamisa || 'M'),
+            })),
+          );
+          if (error) throw error;
+        }
+
+        return { sucesso: true, id: savedId, mensagem: 'Projeto salvo com sucesso.' } as unknown as TResponse;
+      }
+
+      case 'excluir_projeto_fic_fecom':
+      case 'remover_projeto_fic_fecom': {
+        const projetoId = payload.id_projeto || payload.id;
+        if (!projetoId) {
+          return { sucesso: false, erro: 'Identificador do projeto ausente.' } as unknown as TResponse;
+        }
+        const { error } = await supabase
+          .from('projetos_fic_fecom')
+          .delete()
+          .eq('id', projetoId);
+        if (error) throw error;
+        return { sucesso: true, mensagem: 'Projeto excluído com sucesso.' } as unknown as TResponse;
       }
 
       case 'excluir_clube':

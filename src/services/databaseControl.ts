@@ -1,7 +1,7 @@
 import { supabase, testSupabaseConnection } from './supabase';
 import { clearStoredClubesCompeticao } from '../data/defaultClubesCompeticao';
 import type { ClubeCompeticao } from '../data/defaultClubesCompeticao';
-import { getStoredProjetosFicFecom, clearStoredProjetosFicFecom } from '../data/defaultProjetosFicFecom';
+import { clearStoredProjetosFicFecom } from '../data/defaultProjetosFicFecom';
 import type { ProjetoFicFecom } from '../data/defaultProjetosFicFecom';
 
 function normalizeCompetitionStatus(value: unknown): ClubeCompeticao['status'] {
@@ -130,6 +130,7 @@ export async function fetchFullDatabaseDump(): Promise<FullDatabaseDump> {
           nome: String(clube.nome || ''),
           escola: String(clube.escola || ''),
           utec: String(clube.utec?.nome || clube.utec || ''),
+          idUtec: String(clube.id_utec || ''),
           competicao: String(clube.competicao || 'Geral'),
           nivel: String(clube.nivel || 'Nível 1 (Anos Iniciais)'),
           prof: String(clube.prof || 'Não informado'),
@@ -160,8 +161,56 @@ export async function fetchFullDatabaseDump(): Promise<FullDatabaseDump> {
     console.warn('Erro ao carregar clubes de competição no dump:', err);
   }
 
-  // 7. Projetos FIC & FECOM (armazenados)
-  const projetosFicFecom = getStoredProjetosFicFecom();
+  // 7. Projetos FIC & FECOM
+  let projetosFicFecom: ProjetoFicFecom[] = [];
+  try {
+    const { data: projetos } = await supabase
+      .from('projetos_fic_fecom')
+      .select('*, utec:utecs(nome)')
+      .order('titulo', { ascending: true });
+
+    if (projetos) {
+      projetosFicFecom = await Promise.all(projetos.map(async (projeto: any) => {
+        const { data: integrantes } = await supabase
+          .from('integrantes_projeto')
+          .select('*')
+          .eq('id_projeto', projeto.id);
+
+        return {
+          id: String(projeto.id),
+          titulo: String(projeto.titulo || ''),
+          modalidade: projeto.modalidade === 'FECOM' ? 'FECOM' : 'FIC',
+          escola: String(projeto.escola || ''),
+          utec: String(projeto.utec?.nome || projeto.utec || ''),
+          idUtec: String(projeto.id_utec || ''),
+          professor: String(projeto.professor || 'A definir'),
+          estagiario: String(projeto.estagiario || ''),
+          status: normalizeCompetitionStatus(projeto.status),
+          dataCadastro: String(projeto.data_cadastro || ''),
+          integrantesList: (integrantes || []).map((integrante: any) => ({
+            id: String(integrante.id),
+            nome: String(integrante.nome || ''),
+            matricula: String(integrante.matricula || ''),
+            anoEscolar: String(integrante.ano_escolar || ''),
+            genero: integrante.genero === 'F' ? 'F' : 'M',
+            tamanhoCamisa: String(integrante.tamanho_camisa || 'M'),
+          })),
+          justificativaTematica: String(projeto.justificativa_tematica || ''),
+          processoConstrucao: String(projeto.processo_construcao || ''),
+          pensarBrincando: String(projeto.pensar_brincando || ''),
+          linguagensUsadas: Array.isArray(projeto.linguagens_usadas) ? projeto.linguagens_usadas : [],
+          propositoColetivo: String(projeto.proposito_coletivo || ''),
+          recursosRobotica: Array.isArray(projeto.recursos_robotica) ? projeto.recursos_robotica : [],
+          recursosOutroDescricao: String(projeto.recursos_outro_descricao || ''),
+          conteudosEscolares: String(projeto.conteudos_escolares || ''),
+          competenciasBncc: String(projeto.competencias_bncc || ''),
+          habilidadesBncc: String(projeto.habilidades_bncc || ''),
+        } as ProjetoFicFecom;
+      }));
+    }
+  } catch (err) {
+    console.warn('Erro ao carregar projetos FIC/FECOM no dump:', err);
+  }
 
   return {
     clubes,
